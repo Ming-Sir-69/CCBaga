@@ -152,9 +152,13 @@ class NetworkTests(unittest.TestCase):
         self.assertIn(json.dumps(conf['home_user']+':'+conf['home_pass']),curl)
 
     def test_known_hosts_quotes_survive_openssh_config_parsing(self):
-        ssh = shutil.which('ssh')
-        if not ssh:
+        try:
+            ssh = n.program('ssh')
+        except ValueError:
             self.skipTest('OpenSSH is required')
+        # Windows OpenSSH rejects -F nul. An empty file avoids that and still ignores the user config.
+        empty = self.root / 'empty-ssh-config'
+        empty.write_text('')
         names = ['plain dir']
         if os.name != 'nt':
             names.extend(['say"hi', 'a\\b'])
@@ -167,12 +171,12 @@ class NetworkTests(unittest.TestCase):
                 args = n.ssh_args(self.config(), self.root / 'key', folder / 'connection.json')
                 option = next(arg for arg in args if arg.startswith('UserKnownHostsFile='))
                 result = subprocess.run(
-                    [ssh, '-G', '-F', os.devnull, '-o', option, 'example.invalid'],
+                    [ssh, '-G', '-F', str(empty), '-o', option, 'example.invalid'],
                     capture_output=True, text=True)
                 self.assertEqual(result.returncode, 0, result.stderr)
-                parsed = next(line.split(' ', 1)[1] for line in result.stdout.splitlines()
+                parsed = next(line.split(' ', 1)[1].strip() for line in result.stdout.splitlines()
                               if line.startswith('userknownhostsfile '))
-                self.assertEqual(parsed, hosts.as_posix())
+                self.assertEqual(Path(parsed), hosts)
 
     def test_failed_or_timed_out_process_never_returns_success(self):
         with self.assertRaises(RuntimeError): n.execute([sys.executable,'-c','raise SystemExit(1)'])
