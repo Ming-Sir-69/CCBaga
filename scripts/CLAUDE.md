@@ -48,3 +48,5 @@ test-package-linux-browser.py: 四种目录移动取消恢复及取消后恢复�
 test-browser-cleanup.ts: 复用身份测试入口的 browser 模式，验证无缓存全清理、默认取消/强制勾选、精确删除参数、任务锁/真实 Channel 进度、失败与双语；仅内存 IPC，无原生或真实用户资料。
 test-browser-profiles.ts: 固定引擎的真实持久资料隔离回归；虚构 Cookie/LocalStorage 的 A/B 隔离、重开恢复和空资料，仅临时 HOME/本机页面。
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+
+downstream/: 下游开发用按需源码更新预检、独立快照与合成 Git 回归；只在主动准备更新时运行，不注册常驻/定时任务。冲突阻断更新，结果单份覆盖，错误提示临时生成后清理。该目录不属于上游进程归属 PR。
