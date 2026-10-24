@@ -4,6 +4,8 @@
 [POS]: 项目公开入口，连接产品功能、使用说明与模块导航。
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 -->
+> **Unofficial downstream development branch.** See [DOWNSTREAM.md](DOWNSTREAM.md) for scope and maintenance boundaries. Official releases are published by liseami.
+
 <div align="center">
   <img src="docs/brand-logos.svg" width="320" height="149" alt="CCBaga-A and CCBaga-B logos, side by side" />
   <h1>CCBaga</h1>

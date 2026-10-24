@@ -228,12 +228,12 @@ fn profile_reset_unlinks_only_owned_root_chromium_crash_locks() {
     fs::create_dir(&active).unwrap();
     fs::create_dir(&outside).unwrap();
     fs::write(outside.join("keep"), b"external fixture").unwrap();
-    for name in ["SingletonLock", "SingletonCookie", "SingletonSocket"] {
+    for name in ["SingletonLock", "SingletonCookie", "SingletonSocket", "RunningChromeVersion"] {
         std::os::unix::fs::symlink(&outside, active.join(name)).unwrap();
     }
     assert_eq!(
         profile::reset(&active, || Ok(()), |_, _, _, _| {}).unwrap(),
-        3
+        4
     );
     assert_eq!(fs::read_dir(&active).unwrap().count(), 0);
     assert_eq!(fs::read(outside.join("keep")).unwrap(), b"external fixture");

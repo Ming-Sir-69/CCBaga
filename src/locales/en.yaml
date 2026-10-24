@@ -62,7 +62,8 @@
 "浏览器语言": "Browser language"
 "网页时区": "Browser time zone"
 "浏览器时区": "Browser time zone"
-"使用真实设备指纹": "Use actual device fingerprint"
+"保留原始图形特征": "Preserve native graphics characteristics"
+"仅控制 Canvas 与页面元素矩形；取消勾选仅请求种子扰动，不代表完整设备指纹。": "Controls only Canvas and element rectangles (ClientRects). Clearing this requests seed-based perturbation, not a complete device fingerprint change."
 "保存设置": "Save settings"
 "缓存与站点数据": "Cache & site data"
 "可直接清理缓存": "Cache size"
@@ -593,7 +594,6 @@
 "浏览器应用注册失败（OSStatus {v0}）。": "Browser registration failed (OSStatus {v0})."
 "系统拒绝设置默认浏览器（http {v0} / https {v1}）。": "System refused default browser request (http {v0} / https {v1})."
 "浏览器未接受退出，请在浏览器窗口保存任务后退出。": "Browser did not quit. Save your work and quit from the browser window."
-"无法确认浏览器进程的资料归属，未操作资料。": "Could not confirm which profile the browser process owns. No profile data was changed."
 "无法打开对应系统设置页面。": "Cannot open this System Settings page."
 "请选择支持的系统语言。": "Select a supported system language."
 "语言偏好未能写入，请在系统设置中完成修改。": "Cannot save language preference. Apply it in System Settings."
@@ -1264,3 +1264,224 @@
 "锁路径内容不明，文件残留清理将保留此路径。": "Lock path contents are unknown. File cleanup will preserve this path."
 
 "我确认备份来源可信，并了解恢复配置或插件可能执行其命令。": "I trust this backup’s source and understand restored settings or plugins may run commands."
+
+"独立环境管理": "Independent environments"
+"每个环境使用独立资料和指纹配置，可同时打开；不随 Claude 身份切换。": "Each environment has its own browser data and fingerprint configuration. Environments can run together and do not switch with Claude identities."
+"这些环境打开空白页，暂不提供下方身份联动环境的实测报告。": "These environments open a blank page. The measured report below applies only to the identity-linked environment."
+"新建长期环境": "New persistent environment"
+"新建一次性环境": "New disposable environment"
+"清理一次性残留": "Retry disposable cleanup"
+"环境状态尚未读取。": "Environment status is not available yet."
+"尚未创建独立环境。": "No independent environments yet."
+"一次性环境": "Disposable environment"
+"长期环境": "Persistent environment"
+"等待清理": "Cleanup pending"
+"打开环境": "Open environment"
+"打开新窗口": "Open new window"
+"编辑环境": "Edit environment"
+"删除环境": "Delete environment"
+"一次性环境在整个浏览器进程退出后自动清理；主程序未运行时，下次启动再清理。下载到环境目录外的文件会保留。": "Disposable environments are cleaned after the browser process exits. If the manager is closed, cleanup resumes when it next starts. Downloads saved outside the environment folder are kept."
+"创建环境": "Create environment"
+"环境名称": "Environment name"
+"名称须为 1–80 个字符；创建时自动生成独立指纹种子。": "Use 1–80 characters. A separate fingerprint seed is generated when the environment is created."
+"留空沿用当前网络；仅修改这个浏览器的代理参数。": "Leave blank to use the current network. This setting changes only this browser’s proxy arguments."
+"配置只在浏览器退出后保存；不同种子不代表所有设备特征都不同。": "Settings can be saved after the browser exits. Different seeds do not make every device characteristic different."
+"环境状态已变化，暂时无法保存。请关闭编辑并刷新。": "The environment state changed and cannot be saved now. Close the editor and refresh."
+"永久删除所选环境的登录、密码、书签、历史、扩展、设置和缓存，不创建备份。": "Permanently delete the selected environment’s logins, passwords, bookmarks, history, extensions, settings and cache. No backup is created."
+"确认删除环境": "Confirm environment deletion"
+"其他独立环境、身份联动资料和身份保险库不受影响。": "Other independent environments, identity-linked browser data and the identity vault are unchanged."
+"身份联动环境与实测": "Identity-linked environment and measurements"
+
+"部分环境配置无法读取，资料已保留；其他环境仍可使用。": "Some environment configurations could not be read. Their data has been preserved; other environments remain available."
+"未读取环境 {v0}": "Unreadable environment {v0}"
+"环境名称须为 1–80 个字符且不能包含控制字符。": "Environment names must contain 1–80 characters and no control characters."
+"独立环境编号无效。": "Invalid independent environment ID."
+"无法读取独立环境。": "Could not read the independent environment."
+"独立环境配置过大。": "The independent environment configuration is too large."
+"独立环境配置损坏，未覆盖。": "The independent environment configuration is damaged and has not been overwritten."
+"独立环境配置无效，未修改资料。": "The independent environment configuration is invalid. Its data has not been changed."
+"环境配置编码失败。": "Could not encode the environment configuration."
+"无法读取独立环境列表。": "Could not read the independent environment list."
+"无法创建环境种子。": "Could not generate an environment seed."
+"独立环境仍在运行或启动，请先正常退出。": "The independent environment is still running or starting. Exit it normally first."
+"环境启动状态尚未确认，请稍后重试。": "Environment startup has not been confirmed. Try again shortly."
+"无法检查独立环境目录。": "Could not inspect the independent environment folder."
+"独立环境包含未知文件，未删除。": "The independent environment contains unknown files and has not been deleted."
+"环境资料未完全删除。": "Environment data was not completely deleted."
+"环境资料已清理，配置未能删除。": "Environment data was cleaned, but its configuration could not be deleted."
+"环境资料已清理，空目录未能删除。": "Environment data was cleaned, but its empty folder could not be deleted."
+"一次性环境已结束使用，请清理后新建。": "This disposable environment has finished. Clean it up and create a new one."
+"独立环境启动失败。": "Could not start the independent environment."
+"无法读取独立环境进程状态。": "Could not read the independent environment process status."
+"独立环境启动后退出，请检查浏览器引擎。": "The independent environment exited after launch. Check the browser engine."
+"独立环境仍在启动，请刷新状态。": "The independent environment is still starting. Refresh its status."
+"无法确认浏览器进程的资料归属，未操作资料。": "Could not confirm which profile the browser process owns. No profile data was changed."
+"浏览器目录": "Browser directory"
+"一个账号使用一个长期环境：新建 → 配置 → 打开；可继续新建第二个并同时使用。": "Use one persistent environment per account: create, configure, then open. Create more environments to use them side by side."
+"共 {v0} 个环境 · {v1} 个运行中": "{v0} environments · {v1} running"
+"配置环境": "Configure environment"
+"创建并配置": "Create and configure"
+"保存并打开": "Save and open"
+"此区只管理随 Claude 身份切换的单一环境；多个账号的并行浏览器请使用上方目录。": "This section manages the single environment linked to Claude identity switching. Use the directory above for concurrent browsers and multiple accounts."
+"每个窗口打开标有环境名称的起始页，请在对应窗口登录账号。下方实测报告仅属于身份联动环境。": "Each window opens a start page bearing its environment name. Sign in to the intended account in that window. Measurements below belong only to the identity-linked environment."
+"退出环境": "Exit environment"
+"点击名称重命名，浏览器运行时也可修改。": "Click the name to rename it, even while the browser is running."
+"重命名环境 {v0}": "Rename environment {v0}"
+"重命名环境": "Rename environment"
+"只修改名称，不关闭浏览器，不改变登录资料和指纹配置。": "Only the name changes. The browser stays open, and sign-in data and fingerprint settings remain unchanged."
+"关闭浏览器": "Close browser"
+"长期环境关闭浏览器后保留登录；一次性环境关闭浏览器后自动清理。": "Persistent environments retain sign-ins after closing the browser; temporary environments are cleaned up automatically."
+
+"打开窗口": "Open window"
+
+"{v0} 个环境 · {v1} 运行中": "{v0} environments · {v1} running"
+
+"关闭后自动清理": "Cleared after closing"
+
+"留空沿用当前网络": "Leave blank for the current network"
+
+"无法读取浏览器窗口状态，请重试。": "Cannot read the browser window state. Please try again."
+
+"无法显示已有浏览器窗口，请重试。": "Cannot show the existing browser window. Please try again."
+"浏览器启动设置无效，未打开窗口。": "The browser startup settings are invalid. No window was opened."
+
+"接管现有 Brave": "Manage existing Brave"
+
+"原 Brave 资料": "Existing Brave profile"
+
+"沿用 Brave 原设置": "Uses existing Brave settings"
+
+"移除卡片": "Remove card"
+
+"关联已打开的独立 Brave 资料，不复制或修改原资料。": "Link an open, dedicated Brave profile without copying or modifying its data."
+
+"接管": "Link profile"
+
+"Brave 资料目录": "Brave user data directory"
+
+"只移除 CCBaga 管理记录，原 Brave 资料和窗口保留。": "Remove only the CCBaga entry. Keep the original Brave data and windows."
+
+"Brave 操作无效。": "Invalid Brave operation."
+
+"现有 Brave 接管目前仅支持 macOS。": "Managing existing Brave profiles is currently supported only on macOS."
+
+"现有 Brave 资料引用无效，未操作资料。": "The existing Brave reference is invalid. No profile data was accessed."
+
+"无法移除 Brave 管理记录。": "Cannot remove the Brave management entry."
+
+"此环境沿用 Brave 原设置，请在浏览器中配置。": "This environment uses its original Brave settings. Configure them in Brave."
+
+"Brave 资料目录必须是绝对路径。": "The Brave user data directory must be an absolute path."
+
+"请选择包含 Default 与 Local State 的 Brave 资料目录。": "Select a Brave user data directory containing Default and Local State."
+
+"请先打开这套独立 Brave，再接管它的资料目录。": "Open this dedicated Brave profile before linking its user data directory."
+
+"这套 Brave 资料已经接入。": "This Brave profile is already linked."
+
+"未找到原 Brave 程序，未改用其他内核。": "The original Brave application was not found. No other engine was used."
+
+"Brave 启动失败。": "Brave failed to start."
+
+"Brave 仍在启动，请刷新状态。": "Brave is still starting. Refresh its status."
+
+"Brave 环境": "Brave profile"
+
+"已打开": "Window open"
+
+"后台运行": "Running in background"
+
+"后台未退出": "Background processes remain"
+
+"正在打开": "Opening"
+
+"正在关闭": "Closing"
+
+"正在确认": "Checking"
+
+"未见可见窗口，可能已关窗、最小化或位于其他桌面。按资料目录检查当前环境，不会按浏览器名称关闭其他环境。": "No visible window was observed. It may be closed, minimized, or on another desktop. Checks are scoped to this profile, not to all processes sharing the browser name."
+
+"相关后台进程未退出": "Related background processes remain"
+
+"未见窗口，进程仍在": "No visible window; process still running"
+
+"正常关闭当前环境并检查进程退出；未确认停止时不会清理资料。": "Quit this environment normally and check that its processes have exited. Data is retained until stopping is confirmed."
+
+"后台进程状态未完整读回，暂不判定浏览器已关闭。": "Background process status is incomplete. The browser is not considered closed."
+
+"后台进程尚未退出，请稍后重新检查。": "Related background processes have not exited. Check again shortly."
+
+"当前环境仍有进程未退出，请检查浏览器提示后重试。": "Processes still belong to this environment. Check browser prompts and try again."
+
+"更多操作": "More actions"
+
+"更多": "More"
+
+"环境检测": "Environment check"
+
+"暂不支持此环境检测": "Checks are not yet supported for this environment"
+
+"环境设置": "Environment settings"
+
+"语言与时区": "Language and time zone"
+
+"添加环境": "Add environment"
+
+"本机浏览器": "Browsers on this Mac"
+
+"仅发现，导入尚未开放": "Discovery only; import is not available yet"
+
+"浏览器发现失败": "Browser discovery failed"
+
+"正在发现浏览器": "Discovering browsers"
+
+"此平台暂不支持浏览器发现": "Browser discovery is not supported on this platform yet"
+
+"默认浏览器未知": "Default browser is unknown"
+
+"未发现本机浏览器": "No browsers found"
+
+"默认浏览器": "Default browser"
+
+"未安装 · 有历史资料": "Not installed · Existing data"
+
+"未安装浏览器": "Browsers not installed"
+
+"Safari 导入待支持": "Safari import is not supported yet"
+
+"发现 {v0} 个资料": "Found {v0} profiles"
+
+"未发现资料": "No profiles found"
+
+"资料访问受限": "Profile access restricted"
+
+"未读取资料名称": "Profile names not read"
+
+"资料发现待支持": "Profile discovery not supported yet"
+
+"资料状态未知": "Profile status unknown"
+
+"浏览器标识": "Browser identifier"
+
+"版本未知": "Version unknown"
+
+"资料位置": "Data location"
+
+"详情": "Details"
+
+"网页处理程序": "Web link handler"
+
+"其他网页处理程序": "Other web link handlers"
+
+"选择环境 {v0}": "Select environment {v0}"
+
+
+
+
+
+
+
+"原生环境": "Native environment"
+"身份联动": "Identity-linked"
+"系统操作": "System actions"
+"先保存设置，再打开窗口。": "Save settings before opening the window."

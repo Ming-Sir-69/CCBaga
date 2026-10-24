@@ -1,5 +1,5 @@
 // [INPUT]: 跨平台原生边界、Tauri 生命周期/custom-protocol、身份/清理/浏览器/系统命令与官方签名更新、重启、Rust 原生文件选择插件。
-// [OUTPUT]: CCBaga-A 窗口/托盘、身份与一次性文件选择迁移命令；文件路径留在原生状态，不开放通用 WebView 文件能力。
+// [OUTPUT]: CCBaga-A 窗口/托盘、身份迁移与独立浏览器环境命令及退出观察；路径留在原生状态，不开放通用 WebView 文件能力。
 // [POS]: 应用编排层；不注册翻译快捷键，不读取翻译设置或 API 密钥。
 // [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
@@ -98,6 +98,8 @@ fn main() {
             app.manage(ui_language::UiLanguage::load(app.handle()));
             app.manage(cleaner::Cleaner::default());
             app.manage(browser::Browser::default());
+            app.manage(browser::environments::Environments::default());
+            browser::environments::monitor(app.handle().clone());
             app.manage(identities::portable::Transfers::default());
             #[cfg(target_os = "macos")]
             browser::companion(app.handle().clone());
@@ -169,6 +171,15 @@ fn main() {
             browser::browser_default_read,
             browser::browser_set_default,
             browser::browser_rotate,
+            browser::environments::browser_environments_read,
+            browser::discovery::browser_discover,
+            browser::environments::browser_environment_create,
+            browser::environments::browser_environment_rename,
+            browser::environments::browser_environment_save,
+            browser::environments::browser_environment_launch,
+            browser::environments::browser_environment_quit,
+            browser::environments::browser_environment_delete,
+            browser::environments::browser_environments_cleanup,
             network_links::network_open_resource,
             network_links::network_diagnose_domains
         ])
@@ -177,7 +188,10 @@ fn main() {
         .run(|app, event| match event {
             #[cfg(target_os = "macos")]
             tauri::RunEvent::Reopen { .. } => show(app),
-            tauri::RunEvent::Exit => browser::forget_start_url(app),
+            tauri::RunEvent::Exit => {
+                browser::environments::stop(app);
+                browser::forget_start_url(app);
+            },
             _ => {}
         });
 }

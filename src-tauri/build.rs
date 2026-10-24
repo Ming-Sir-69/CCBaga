@@ -11,6 +11,7 @@ fn main() {
             .file("native/Identity.m")
             .file("native/System.m")
             .file("native/Browser.m")
+            .file("native/BrowserDiscovery.m")
             .flag("-fobjc-arc")
             .compile("selection");
         for framework in [
@@ -22,6 +23,7 @@ fn main() {
             "CoreLocation",
             "SystemConfiguration",
             "CoreServices",
+            "CoreGraphics",
         ] {
             println!("cargo:rustc-link-lib=framework={framework}");
         }
@@ -31,6 +33,7 @@ fn main() {
         println!("cargo:rerun-if-changed=native/Identity.m");
         println!("cargo:rerun-if-changed=native/System.m");
         println!("cargo:rerun-if-changed=native/Browser.m");
+        println!("cargo:rerun-if-changed=native/BrowserDiscovery.m");
     }
     tauri_build::build();
 }

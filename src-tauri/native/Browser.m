@@ -1,6 +1,6 @@
 /*
  * [INPUT]: Foundation/CoreLocation 状态、SystemConfiguration 代理、LaunchServices 注册/默认处理程序与 proc 进程身份。
- * [OUTPUT]: 含有效区域国家（保留原始 locale）的真实机器快照、浏览器应用注册、按包标识查询运行、默认浏览器读取与系统确认式设置、美国区域设置；资料进程以用户/包标识、唯一绝对 --user-data-dir 与目标目录的设备/inode 一致及启动时间复核；仅明确不同才视为未运行，参数/元数据/进程信息不可读或参数歧义时报告未知，退出只作用于确认属于该资料的进程。
+ * [OUTPUT]: 含有效区域国家的真实机器快照、浏览器注册/默认设置；资料进程以用户/包标识/唯一绝对 user-data-dir、目录设备/inode 与进程创建时间复核，未知参数拒绝查询和退出；已有窗口按同一资料进程激活；只读区分可见窗口、主进程与显式属于该资料的辅助进程。
  * [POS]: 浏览器的只读机器来源和进程边界；不伪造硬件，不读取浏览器凭据。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -9,8 +9,9 @@
 #import <CoreLocation/CoreLocation.h>
 #import <SystemConfiguration/SystemConfiguration.h>
 #import <libproc.h>
-#import <sys/stat.h>
 #import <sys/sysctl.h>
+#import <sys/stat.h>
+#import <errno.h>
 #import <unistd.h>
 static char *browserResponse(NSDictionary *value) {
     NSData *data = [NSJSONSerialization dataWithJSONObject:value options:0 error:NULL];
@@ -146,7 +147,11 @@ static ProfileOwnership profileOwnership(const struct proc_bsdinfo *before, BOOL
         || after->pbi_start_tvusec != before->pbi_start_tvusec || !arguments) return ProfileOwnershipUnknown;
     return profileDirectoryOwnership(profileArgument(arguments), profile);
 }
-static NSRunningApplication *profileApplication(NSString *profile, BOOL *unknown) {
+// Helper occupancy is counted only when its explicit argument spelling identifies this managed root.
+static BOOL profileArgumentsMatch(NSArray<NSString *> *arguments, NSString *profile) {
+    return [profileArgument(arguments) isEqualToString:profile];
+}
+static NSRunningApplication *profileApplicationForBrowser(NSString *profile, BOOL brave, BOOL *unknown) {
     *unknown = NO;
     NSString *lock = [NSFileManager.defaultManager destinationOfSymbolicLinkAtPath:[profile stringByAppendingPathComponent:@"SingletonLock"] error:NULL];
     NSString *number = [[lock componentsSeparatedByString:@"-"] lastObject];
@@ -161,7 +166,10 @@ static NSRunningApplication *profileApplication(NSString *profile, BOOL *unknown
     }
     if (info.pbi_uid != getuid()) return nil;
     NSRunningApplication *app = [NSRunningApplication runningApplicationWithProcessIdentifier:pid];
-    if (![@[@"ai.local.requirement-french.browser", @"local.ccbroswer"] containsObject:app.bundleIdentifier] || ![@[@"Chromium", @"CCBrowser"] containsObject:app.executableURL.lastPathComponent]) return nil;
+    if (brave) {
+        if (![app.bundleIdentifier isEqualToString:@"com.brave.Browser"] || ![app.executableURL.lastPathComponent isEqualToString:@"Brave Browser"]
+            || ![app.bundleURL.path isEqualToString:@"/Applications/Brave Browser.app"]) return nil;
+    } else if (![@[@"ai.local.requirement-french.browser", @"local.ccbroswer"] containsObject:app.bundleIdentifier] || ![@[@"Chromium", @"CCBrowser"] containsObject:app.executableURL.lastPathComponent]) return nil;
     NSArray<NSString *> *arguments = profileArguments(pid);
     struct proc_bsdinfo current = {0};
     BOOL reread = proc_pidinfo(pid, PROC_PIDTBSDINFO, 0, &current, sizeof(current)) == sizeof(current);
@@ -169,11 +177,123 @@ static NSRunningApplication *profileApplication(NSString *profile, BOOL *unknown
     *unknown = ownership == ProfileOwnershipUnknown;
     return ownership == ProfileOwnershipOwned ? app : nil;
 }
+static NSRunningApplication *profileApplication(NSString *profile, BOOL *unknown) {
+    return profileApplicationForBrowser(profile, NO, unknown);
+}
+char *rf_brave_running(const char *profile) {
+    BOOL unknown = NO;
+    NSRunningApplication *app = profileApplicationForBrowser([NSString stringWithUTF8String:profile], YES, &unknown);
+    if (unknown) return browserResponse(@{@"error": @"无法确认浏览器进程的资料归属，未操作资料。"});
+    return browserResponse(@{@"running": app ? @YES : @NO});
+}
 char *rf_browser_running(const char *profile) {
     BOOL unknown = NO;
     NSRunningApplication *app = profileApplication([NSString stringWithUTF8String:profile], &unknown);
     if (unknown) return browserResponse(@{@"error": @"无法确认浏览器进程的资料归属，未操作资料。"});
     return browserResponse(@{@"running": app ? @YES : @NO});
+}
+static BOOL profileWindowPresent(NSArray<NSDictionary *> *windows, pid_t pid) {
+    for (NSDictionary *window in windows) {
+        if ([window[(__bridge NSString *)kCGWindowOwnerPID] intValue] == pid
+            && [window[(__bridge NSString *)kCGWindowLayer] intValue] == 0
+            && [window[(__bridge NSString *)kCGWindowIsOnscreen] boolValue]
+            && [window[(__bridge NSString *)kCGWindowAlpha] doubleValue] > 0) {
+            NSDictionary *value = window[(__bridge NSString *)kCGWindowBounds];
+            CGRect bounds = CGRectZero;
+            if ([value isKindOfClass:NSDictionary.class]
+                && CGRectMakeWithDictionaryRepresentation((__bridge CFDictionaryRef)value, &bounds)
+                // Chromium owns off-screen helper windows and screen-wide menu strips
+                // at layer zero; these do not establish a usable browser window.
+                && bounds.size.width >= 100 && bounds.size.height >= 80) return YES;
+        }
+    }
+    return NO;
+}
+// Read-only occupancy observation. Do not infer a profile from a process name alone.
+static BOOL browserProcessCandidate(NSString *path) {
+    NSString *name = path.lastPathComponent;
+    return [name isEqualToString:@"Chromium"] || [name isEqualToString:@"CCBrowser"]
+        || [name hasPrefix:@"Chromium Helper"] || [name hasPrefix:@"CCBaga-B Helper"]
+        || [name hasPrefix:@"Brave Browser"] || [name hasPrefix:@"Google Chrome"]
+        || [name hasPrefix:@"Microsoft Edge"] || [name isEqualToString:@"chrome_crashpad_handler"];
+}
+static int profileProcessCount(NSString *profile, BOOL *complete) {
+    *complete = YES;
+    int capacity = proc_listallpids(NULL, 0) + 128;
+    if (capacity <= 128 || capacity > 65536) { *complete = NO; return 0; }
+    pid_t *pids = calloc((size_t)capacity, sizeof(pid_t));
+    if (!pids) { *complete = NO; return 0; }
+    int count = proc_listallpids(pids, capacity * (int)sizeof(pid_t));
+    if (count <= 0 || count >= capacity) { free(pids); *complete = NO; return 0; }
+    int matches = 0;
+    for (int i = 0; i < count; i++) { @autoreleasepool {
+        pid_t pid = pids[i];
+        struct proc_bsdinfo before = {0}, after = {0};
+        char executable[PROC_PIDPATHINFO_MAXSIZE] = {0};
+        if (pid <= 1 || proc_pidinfo(pid, PROC_PIDTBSDINFO, 0, &before, sizeof(before)) != sizeof(before)
+            || before.pbi_uid != getuid() || proc_pidpath(pid, executable, sizeof(executable)) <= 0) continue;
+        if (!browserProcessCandidate([NSString stringWithUTF8String:executable])) continue;
+        NSArray<NSString *> *arguments = profileArguments(pid);
+        if (proc_pidinfo(pid, PROC_PIDTBSDINFO, 0, &after, sizeof(after)) != sizeof(after)) continue;
+        if (!arguments || before.pbi_start_tvsec != after.pbi_start_tvsec || before.pbi_start_tvusec != after.pbi_start_tvusec) {
+            *complete = NO; continue;
+        }
+        if (profileArgumentsMatch(arguments, profile)) matches++;
+    } }
+    free(pids);
+    return matches;
+}
+static char *profileActivity(const char *raw, BOOL brave) {
+    NSString *profile = [NSString stringWithUTF8String:raw];
+    BOOL unknown = NO, complete = YES;
+    NSRunningApplication *app = profileApplicationForBrowser(profile, brave, &unknown);
+    if (unknown) return browserResponse(@{@"error": @"无法确认浏览器进程的资料归属，未操作资料。"});
+    int count = profileProcessCount(profile, &complete);
+    if (!complete) return browserResponse(@{@"error": @"后台进程状态未完整读回，暂不判定浏览器已关闭。"});
+    if (app && count < 1) count = 1;
+    id visible = @NO;
+    if (app) {
+        NSArray *windows = CFBridgingRelease(CGWindowListCopyWindowInfo(kCGWindowListOptionAll | kCGWindowListExcludeDesktopElements, kCGNullWindowID));
+        visible = windows ? @(profileWindowPresent(windows, app.processIdentifier)) : NSNull.null;
+    }
+    return browserResponse(@{@"main_running": app ? @YES : @NO, @"process_count": @(count), @"visible_window": visible});
+}
+char *rf_browser_activity(const char *profile) { return profileActivity(profile, NO); }
+char *rf_brave_activity(const char *profile) { return profileActivity(profile, YES); }
+
+static char *activateProfile(const char *profile, BOOL brave) {
+    BOOL unknown = NO;
+    NSRunningApplication *app = profileApplicationForBrowser([NSString stringWithUTF8String:profile], brave, &unknown);
+    if (unknown) return browserResponse(@{@"error": @"无法确认浏览器进程的资料归属，未操作资料。"});
+    if (!app) return browserResponse(@{@"activated": @NO});
+    NSArray *windows = CFBridgingRelease(CGWindowListCopyWindowInfo(kCGWindowListOptionAll | kCGWindowListExcludeDesktopElements, kCGNullWindowID));
+    if (!windows) return browserResponse(@{@"error": @"无法读取浏览器窗口状态，请重试。"});
+    if (!profileWindowPresent(windows, app.processIdentifier)) return browserResponse(@{@"activated": @NO});
+    __block BOOL activated = NO;
+    void (^activate)(void) = ^{
+        if (@available(macOS 14.0, *)) {
+            [NSApp yieldActivationToApplication:app];
+            activated = [app activateFromApplication:NSRunningApplication.currentApplication options:NSApplicationActivateAllWindows];
+        } else {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+            activated = [app activateWithOptions:NSApplicationActivateAllWindows | NSApplicationActivateIgnoringOtherApps];
+#pragma clang diagnostic pop
+        }
+    };
+    if (NSThread.isMainThread) activate();
+    else dispatch_sync(dispatch_get_main_queue(), activate);
+    if (!activated) return browserResponse(@{@"error": @"无法显示已有浏览器窗口，请重试。"});
+    return browserResponse(@{@"activated": @YES});
+}
+char *rf_browser_activate_window(const char *profile) { return activateProfile(profile, NO); }
+char *rf_brave_activate_window(const char *profile) { return activateProfile(profile, YES); }
+char *rf_brave_quit(const char *profile) {
+    BOOL unknown = NO;
+    NSRunningApplication *app = profileApplicationForBrowser([NSString stringWithUTF8String:profile], YES, &unknown);
+    if (unknown) return browserResponse(@{@"error": @"无法确认浏览器进程的资料归属，未操作资料。"});
+    if (app && ![app terminate]) return browserResponse(@{@"error": @"浏览器未接受退出，请在浏览器窗口保存任务后退出。"});
+    return browserResponse(@{@"ok": @YES});
 }
 char *rf_browser_quit(const char *profile) {
     BOOL unknown = NO;

@@ -1,8 +1,10 @@
 // [INPUT]: 本机指纹引擎（优先 /Applications/CCBaga-B.app，回退 ~/Applications）、配置/资料边界、真实浏览器观测、宿主界面语言与共享操作日志。
 // [OUTPUT]: 有界绑定身份上下文与浏览器设置/启动/缓存清理、显式完整资料重置和环境核验；完整重置只处理当前绑定 user-data-dir，按真实项目计数；launch.args 与 SQLite 共用资料/指纹参数，恢复期间阻断启动。
-// [POS]: 独立浏览器模块的唯一编排入口；改变资料前必须退出浏览器；不自行改系统默认浏览器，只发起系统确认。
+// [POS]: 身份联动浏览器编排入口；独立多环境由 environments 隔离管理；改变资料前必须退出，不自行改系统默认浏览器。
 // [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 pub(crate) mod config;
+pub(crate) mod environments;
+pub(crate) mod discovery;
 mod launch;
 mod network;
 mod profile;
@@ -265,6 +267,11 @@ pub fn companion(app: tauri::AppHandle) {
 }
 #[cfg(target_os = "macos")]
 fn start_companion(app: &tauri::AppHandle) -> Result<(), String> {
+    // The packaged B launcher belongs to the official host. A differently named local
+    // host must not invoke it and accidentally start the official app/profile.
+    if format!("{}.browser", app.config().identifier) != BROWSER_ID {
+        return Ok(());
+    }
     let browser = installed().ok_or("未安装 /Applications/CCBaga-B.app。")?;
     let state = app.state::<Browser>();
     let _guard = state.gate.lock().unwrap();
@@ -278,20 +285,10 @@ fn start_companion(app: &tauri::AppHandle) -> Result<(), String> {
     config.validate(&machine)?;
     // 先刷新参数：浏览器已由 CCBaga-B 入口先行启动时，下一次启动也能沿用指纹参数。
     write_launch_args(&root, &config, &machine, &profile, &version(&browser))?;
-    let page = open_session(app, &config, &machine, version(&browser))?;
+    let _page = open_session(app, &config, &machine, version(&browser))?;
     if profile::running(&profile)? {
-        // 宿主重装/重启后端口与令牌变化：给运行中的浏览器打开新的实测页，避免旧标签失联。
-        let mut child = Command::new(browser.join("Contents/MacOS/Chromium"))
-            .arg(format!("--user-data-dir={}", profile.display()))
-            .args(["--profile-directory=Default", &page])
-            .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .spawn()
-            .map_err(|_| "无法重新连接运行中的 CCBaga-B。")?;
-        std::thread::spawn(move || {
-            let _ = child.wait();
-        });
+        // Recreate the manual measurement entry, but never inject a new tab merely
+        // because the manager restarted. Old observations are not treated as fresh.
         return Ok(());
     }
     profile::preferences(&profile, &config, &machine)?;

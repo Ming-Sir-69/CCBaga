@@ -1,5 +1,5 @@
 // [INPUT]: 宿主独立资料目录、原生进程核验与已验证配置。
-// [OUTPUT]: 浏览资料占用保护、偏好更新、缓存/站点清理及用户显式确认的完整资料重置；全量预检后按实际删除项目报告 n/N。
+// [OUTPUT]: 浏览资料主/辅助进程与窗口观测、占用保护、偏好更新、缓存/站点清理及用户显式确认的完整资料重置；全量预检后按实际删除项目报告 n/N。
 // [POS]: 当前绑定 user-data-dir 的文件边界；完整重置含所有子 Profile 与密码密钥，仅允许 unlink 当前用户的根级 Chromium 崩溃锁，拒绝其他链接/外部所有者，不访问系统钥匙串或其他身份。
 // [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 #[cfg(target_os = "linux")]
@@ -22,6 +22,69 @@ use std::{
 extern "C" {
     fn rf_browser_running(profile: *const c_char) -> *mut c_char;
     fn rf_browser_quit(profile: *const c_char) -> *mut c_char;
+    fn rf_browser_activate_window(profile: *const c_char) -> *mut c_char;
+}
+#[cfg(target_os = "macos")]
+extern "C" {
+    fn rf_brave_running(profile: *const c_char) -> *mut c_char;
+    fn rf_brave_quit(profile: *const c_char) -> *mut c_char;
+    fn rf_brave_activate_window(profile: *const c_char) -> *mut c_char;
+}
+#[derive(Clone, Debug, serde::Deserialize)]
+pub struct Activity {
+    pub main_running: bool,
+    pub process_count: u32,
+    pub visible_window: Option<bool>,
+}
+impl Activity {
+    pub fn busy(&self) -> bool { self.main_running || self.process_count > 0 }
+}
+#[cfg(target_os = "macos")]
+extern "C" {
+    fn rf_browser_activity(profile: *const c_char) -> *mut c_char;
+    fn rf_brave_activity(profile: *const c_char) -> *mut c_char;
+}
+pub fn activity(profile: &Path, brave: bool) -> Result<Activity, String> {
+    #[cfg(target_os = "macos")]
+    {
+        let path = CString::new(profile.to_string_lossy().as_bytes()).map_err(|_| "资料路径无效。")?;
+        decode(unsafe { if brave { rf_brave_activity(path.as_ptr()) } else { rf_browser_activity(path.as_ptr()) } })
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let main_running = if brave { brave_action(profile, "running")? } else { running(profile)? };
+        Ok(Activity { main_running, process_count: u32::from(main_running), visible_window: None })
+    }
+}
+/// Owned Brave profiles use native process checks; fingerprint settings are not injected.
+pub fn brave_action(profile: &Path, action: &str) -> Result<bool, String> {
+    #[cfg(target_os = "macos")]
+    {
+        let path = CString::new(profile.to_string_lossy().as_bytes()).map_err(|_| "资料路径无效。")?;
+        let state: Value = decode(unsafe { match action {
+            "running" => rf_brave_running(path.as_ptr()),
+            "activate" => rf_brave_activate_window(path.as_ptr()),
+            "quit" => rf_brave_quit(path.as_ptr()),
+            _ => return Err("Brave 操作无效。".into()),
+        } })?;
+        return Ok(state[if action == "activate" { "activated" } else if action == "quit" { "ok" } else { "running" }].as_bool().unwrap_or(false));
+    }
+    #[cfg(not(target_os = "macos"))]
+    { let _ = (profile, action); Err("现有 Brave 接管目前仅支持 macOS。".into()) }
+}
+/// Bring this profile's existing window forward; false means a window must be opened.
+pub fn activate_window(profile: &Path) -> Result<bool, String> {
+    #[cfg(target_os = "macos")]
+    {
+        let path = CString::new(profile.to_string_lossy().as_bytes()).map_err(|_| "资料路径无效。")?;
+        let state: Value = decode(unsafe { rf_browser_activate_window(path.as_ptr()) })?;
+        return Ok(state["activated"].as_bool().unwrap_or(false));
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = profile;
+        Ok(false)
+    }
 }
 pub fn running(profile: &Path) -> Result<bool, String> {
     let path = CString::new(profile.to_string_lossy().as_bytes()).map_err(|_| "资料路径无效。")?;
@@ -244,12 +307,12 @@ fn reset_metadata(profile: &Path, path: &Path) -> Result<fs::Metadata, String> {
         extern "C" {
             fn getuid() -> u32;
         }
-        // 崩溃遗留的三个 Chromium 根锁仅删除链接自身，绝不进入链接目标。
+        // Chromium 根锁/运行版本标记仅删除链接自身，绝不进入链接目标。
         if meta.file_type().is_symlink()
             && path.parent() == Some(profile)
             && matches!(
                 path.file_name().and_then(|s| s.to_str()),
-                Some("SingletonLock" | "SingletonCookie" | "SingletonSocket")
+                Some("SingletonLock" | "SingletonCookie" | "SingletonSocket" | "RunningChromeVersion")
             )
             && meta.uid() == unsafe { getuid() }
         {
