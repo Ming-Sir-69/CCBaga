@@ -1,5 +1,5 @@
 # [INPUT]: PR 合并提交或 main 源码、三平台原生工具与初始引擎准备的离线文件树。
-# [OUTPUT]: 前端/原生/Skill、发布装配与平台回归结果；PR 只恢复缓存，仅成功的 main 检查保存依赖缓存，不交付安装包。
+# [OUTPUT]: 前端/原生/Skill、发布装配与平台回归结果，含隔离 macOS 地区预检/偏好写入；不交付安装包。
 # [POS]: 无凭据 PR/main 检查；不签名、不发布、不下载引擎，独立于 release.yml。
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 name: Checks
@@ -112,6 +112,9 @@ jobs:
           clang -fobjc-arc -framework Foundation -framework Security src-tauri/native/IdentityTests.m -o "$RUNNER_TEMP/ccbaga-identity-test"
           "$RUNNER_TEMP/ccbaga-identity-test"
           rm -f "$RUNNER_TEMP/ccbaga-identity-test"
+          clang -fobjc-arc -framework AppKit -framework ApplicationServices -framework CoreLocation src-tauri/native/SystemTests.m -o "$RUNNER_TEMP/ccbaga-system-test"
+          "$RUNNER_TEMP/ccbaga-system-test"
+          rm -f "$RUNNER_TEMP/ccbaga-system-test"
       - name: Windows CLI and region regression
         if: runner.os == 'Windows'
         run: python scripts/test-windows.py
