@@ -1,0 +1,214 @@
+{
+  "input": "v0.2.50 真实公开下载、固定源提交的 GitHub 来源证明、正式签名与安装回归",
+  "output": "公开产物逐文件验收与 Issue49 交付闭环；不把元数据检查冒充二进制验证",
+  "pos": "docs 的正式交付证据，补充全库审计记录，不参与应用构建",
+  "protocol": "[PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md",
+  "version": "v0.2.50",
+  "status": "delivered_and_public_downloads_verified",
+  "verified_utc": "2026-10-28T04:59:55.716028+00:00",
+  "release_url": "https://github.com/liseami/CCBaga/releases/tag/v0.2.50",
+  "release_id": 426271973,
+  "published_at": "2026-10-28T04:48:01Z",
+  "source_commit": "568fed199dcdf22468186449116c9ab4cfa6de62",
+  "source_identity": "相对完整源码回归通过的3bf870b，仅审计与安全文档变更；正式发布与检查在568fed1全部成功",
+  "authorization": "用户在已披露既有浏览器补丁覆盖边界后明确要求：交付",
+  "ci": {
+    "release_run": "https://github.com/liseami/CCBaga/actions/runs/40632290417",
+    "release_jobs": [
+      {
+        "id": 122631224026,
+        "name": "version",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 122631270732,
+        "name": "linux",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 122631270784,
+        "name": "windows",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 122631270792,
+        "name": "build",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 122631270814,
+        "name": "arch",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 122635772508,
+        "name": "windows_compat",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 122637309379,
+        "name": "publish",
+        "status": "completed",
+        "conclusion": "success"
+      }
+    ],
+    "checks_run": "https://github.com/liseami/CCBaga/actions/runs/40632290736",
+    "checks_jobs": [
+      {
+        "id": 122631224091,
+        "name": "Checks (macOS)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 122631224661,
+        "name": "Dependency security audit",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 122631224666,
+        "name": "Checks (Windows)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 122631226027,
+        "name": "Checks (Ubuntu)",
+        "status": "completed",
+        "conclusion": "success"
+      }
+    ]
+  },
+  "public_downloads": {
+    "exact_asset_count": 9,
+    "checksum_entries": 8,
+    "latest_alias_byte_identical": true,
+    "binary_verification": "7个真实公开下载均核实际字节/长度/API摘要/SHA256SUMS；官方gh验证签名来源证明",
+    "attestation_policy": {
+      "repo": "liseami/CCBaga",
+      "signer_workflow": "liseami/CCBaga/.github/workflows/release.yml",
+      "source_digest": "568fed199dcdf22468186449116c9ab4cfa6de62",
+      "signer_digest": "568fed199dcdf22468186449116c9ab4cfa6de62",
+      "source_ref": "refs/heads/release",
+      "deny_self_hosted_runners": true,
+      "bundle_fetch": "前5包直接API；AppImage/Arch使用匿名API下载的同一签名bundle，官方验证策略保持一致"
+    },
+    "binaries": [
+      {
+        "name": "CCBaga-0.2.50-linux-x86_64.AppImage",
+        "size": 272771576,
+        "sha256": "68dbd9b46fa1050c9aaecf717a0e2a3ee8d563482d369c24b04bcc5412966a28",
+        "github_digest": "sha256:68dbd9b46fa1050c9aaecf717a0e2a3ee8d563482d369c24b04bcc5412966a28",
+        "source_commit": "568fed199dcdf22468186449116c9ab4cfa6de62",
+        "attestation": "verified",
+        "verified_utc": "2026-10-28T04:58:36.378996+00:00",
+        "url": "https://github.com/liseami/CCBaga/releases/download/v0.2.50/CCBaga-0.2.50-linux-x86_64.AppImage"
+      },
+      {
+        "name": "CCBaga-0.2.50-linux-x86_64.deb",
+        "size": 228182494,
+        "sha256": "188866fb03c609e1ff8a6680ec13682007b6e189b577b828cad1c06bb19ef893",
+        "github_digest": "sha256:188866fb03c609e1ff8a6680ec13682007b6e189b577b828cad1c06bb19ef893",
+        "source_commit": "568fed199dcdf22468186449116c9ab4cfa6de62",
+        "attestation": "verified",
+        "verified_utc": "2026-10-28T04:53:46.049007+00:00",
+        "url": "https://github.com/liseami/CCBaga/releases/download/v0.2.50/CCBaga-0.2.50-linux-x86_64.deb"
+      },
+      {
+        "name": "CCBaga-0.2.50-linux-x86_64.pkg.tar.zst",
+        "size": 210808103,
+        "sha256": "f7e4977af824e576590c10995c2c98cea9b4070c9c4ed6afdc929cfeb3c55544",
+        "github_digest": "sha256:f7e4977af824e576590c10995c2c98cea9b4070c9c4ed6afdc929cfeb3c55544",
+        "source_commit": "568fed199dcdf22468186449116c9ab4cfa6de62",
+        "attestation": "verified",
+        "verified_utc": "2026-10-28T04:59:12.628728+00:00",
+        "url": "https://github.com/liseami/CCBaga/releases/download/v0.2.50/CCBaga-0.2.50-linux-x86_64.pkg.tar.zst"
+      },
+      {
+        "name": "CCBaga-0.2.50-linux-x86_64.rpm",
+        "size": 213560800,
+        "sha256": "e35c7fa33d378e2968b2be293645a9d07703a6e8cdc2da96f35f363794cf1d6a",
+        "github_digest": "sha256:e35c7fa33d378e2968b2be293645a9d07703a6e8cdc2da96f35f363794cf1d6a",
+        "source_commit": "568fed199dcdf22468186449116c9ab4cfa6de62",
+        "attestation": "verified",
+        "verified_utc": "2026-10-28T04:54:18.339562+00:00",
+        "url": "https://github.com/liseami/CCBaga/releases/download/v0.2.50/CCBaga-0.2.50-linux-x86_64.rpm"
+      },
+      {
+        "name": "CCBaga-0.2.50-macos-arm64.app.tar.gz",
+        "size": 161097076,
+        "sha256": "9905567d42882cdacbbee15ee3116aba9c6e12901e05cdc8536f4feb1e48d09f",
+        "github_digest": "sha256:9905567d42882cdacbbee15ee3116aba9c6e12901e05cdc8536f4feb1e48d09f",
+        "source_commit": "568fed199dcdf22468186449116c9ab4cfa6de62",
+        "attestation": "verified",
+        "verified_utc": "2026-10-28T04:51:51.798308+00:00",
+        "updater": "embedded key accepted public bytes; forged version and tampering rejected; no installation",
+        "archive_version": "0.2.50",
+        "url": "https://github.com/liseami/CCBaga/releases/download/v0.2.50/CCBaga-0.2.50-macos-arm64.app.tar.gz"
+      },
+      {
+        "name": "CCBaga-0.2.50-macos-arm64.dmg",
+        "size": 333449374,
+        "sha256": "0df33d29d1ac2dd9c912a65fb8ec7657ec497c2c17da1ee9ae94351ab38a8e0b",
+        "github_digest": "sha256:0df33d29d1ac2dd9c912a65fb8ec7657ec497c2c17da1ee9ae94351ab38a8e0b",
+        "source_commit": "568fed199dcdf22468186449116c9ab4cfa6de62",
+        "attestation": "verified",
+        "verified_utc": "2026-10-28T04:50:18.512398+00:00",
+        "macos": "strict codesign/Gatekeeper, A+B payload/UI and DMG notarization ticket verified",
+        "url": "https://github.com/liseami/CCBaga/releases/download/v0.2.50/CCBaga-0.2.50-macos-arm64.dmg"
+      },
+      {
+        "name": "CCBaga-0.2.50-windows-x86_64-setup.exe",
+        "size": 140219102,
+        "sha256": "c190a2ce1949ee1473a04b51b00e74a9fc0c61c9688ec54de80334637f846ca9",
+        "github_digest": "sha256:c190a2ce1949ee1473a04b51b00e74a9fc0c61c9688ec54de80334637f846ca9",
+        "source_commit": "568fed199dcdf22468186449116c9ab4cfa6de62",
+        "attestation": "verified",
+        "verified_utc": "2026-10-28T04:52:43.944627+00:00",
+        "updater": "embedded key accepted public bytes; forged version and tampering rejected; no installation",
+        "url": "https://github.com/liseami/CCBaga/releases/download/v0.2.50/CCBaga-0.2.50-windows-x86_64-setup.exe"
+      }
+    ],
+    "metadata": [
+      {
+        "name": "latest.json",
+        "size": 1445,
+        "sha256": "e0b001b82676169e59295617832e81b9ef616ef4b72bf64980617ceab6d761f9"
+      },
+      {
+        "name": "SHA256SUMS",
+        "size": 783,
+        "sha256": "9724da67fe61c44a10ccf9e0aba6c4be5a02093db4923d28aa71364b26e841e2"
+      }
+    ]
+  },
+  "functional_validation": {
+    "native": "macOS121 / Ubuntu129 / Windows123通过；各0失败、2个已有手动忽略项",
+    "frontend": "23项4464断言；67项Chromium交互模拟；生产构建成功",
+    "windows_installation": "同一NSIS在Server2025与Server2022真实安装/A+B启动/重装升级/卸载并保留用户资料；既有旧版安装样本步骤未启用",
+    "linux_packages": "Ubuntu22.04构建DEB/RPM/AppImage并解包核对载荷和glibc2.35上限；Arch独立原生构建/包验收",
+    "macos": "Developer ID、公证/装订/Gatekeeper与双应用DMG载荷；公开DMG本机只读复验通过，未重装用户应用",
+    "updater": "公开macOS归档和Windows安装器由嵌入公钥真实验证；篡改字节与伪造9999版本均拒绝，未安装",
+    "security": "Bun/Rust公告扫描0漏洞；4个停止维护警告保留；GLib官方两行回补另做逐字来源及11项优化迭代器测试"
+  },
+  "github_resolution": {
+    "issue49": "closed/completed after public artifact verification",
+    "issue49_url": "https://github.com/liseami/CCBaga/issues/49",
+    "issue49_closed_at": "2026-10-28T04:59:56Z",
+    "open_pull_requests": 0,
+    "open_issues": 0,
+    "issue49_delivery_comment": "https://github.com/liseami/CCBaga/issues/49#issuecomment-6461066789"
+  },
+  "limits": [
+    "固定Fingerprint Chromium148.0.7778.215；fork具体安全回补覆盖仍未验证，字节/来源证明不等于浏览器漏洞清零，详src-tauri/SECURITY.md",
+    "无服务端账号有效性或防封保证；同用户/管理员不是保险库绝对隔离边界",
+    "旧版Release/tag保留；本记录只描述列明平台与实际检查范围，不宣称覆盖所有桌面/远端行为"
+  ]
+}
