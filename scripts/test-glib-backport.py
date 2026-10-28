@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# [INPUT]: crates.io glib 0.18.5 的逐文件摘要、上游迭代器修复与本地 Cargo 覆盖。
+# [INPUT]: UTF-8 编码的逐文件摘要、本地 Cargo 覆盖与 crates.io glib 0.18.5 上游迭代器修复。
 # [OUTPUT]: 验证回补仅含上游两行；--native 在优化构建中执行上游真实 GLib 迭代器回归。
 # [POS]: GTK3 兼容安全回补的来源与运行门槛；不忽略公告、不伪造依赖版本。
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -20,7 +20,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--native', action='store_true')
     args = parser.parse_args()
-    source = json.loads((VENDOR / 'UPSTREAM.json').read_text())
+    source = json.loads((VENDOR / 'UPSTREAM.json').read_text(encoding='utf-8'))
     assert source['archive_sha256'] == ARCHIVE and source['upstream_fix'] == FIX
     assert source['package'] == 'glib' and source['version'] == '0.18.5'
     for name, expected in source['files'].items():
@@ -37,9 +37,9 @@ def main():
     for path in VENDOR.rglob('*'):
         if path.is_file() and path.name not in {'CLAUDE.md', 'UPSTREAM.json', 'Cargo.lock'}:
             assert path.relative_to(VENDOR).as_posix() in source['files'], path
-    manifest = tomllib.loads((ROOT / 'src-tauri/Cargo.toml').read_text())
+    manifest = tomllib.loads((ROOT / 'src-tauri/Cargo.toml').read_text(encoding='utf-8'))
     assert manifest['patch']['crates-io']['glib']['path'] == '../vendor/glib'
-    lock = tomllib.loads((ROOT / 'src-tauri/Cargo.lock').read_text())
+    lock = tomllib.loads((ROOT / 'src-tauri/Cargo.lock').read_text(encoding='utf-8'))
     libraries = [p for p in lock['package'] if p['name'] == 'glib' and p['version'] == '0.18.5']
     assert len(libraries) == 1 and 'source' not in libraries[0]
     print('GLib 0.18.5: all upstream bytes verified; only the official two-line safety fix differs.')
