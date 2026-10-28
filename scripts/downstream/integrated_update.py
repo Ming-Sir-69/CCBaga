@@ -143,7 +143,7 @@ def build_pair(root, config_path, release, api):
     shutil.copytree(source/'dist',contents/'Resources/browser-ui');shutil.copy2(source/'src-tauri/icons/icon.icns',contents/'Resources/icon.icns')
     shutil.copytree(source/'src-tauri/third-party',contents/'Resources/ThirdPartyNotices')
     api.command(['/usr/bin/ditto',official/'CCBaga-B.app',stage/'CCBaga-B.app'],180)
-    pair={'schema':1,'source_commit':sha,'source':str(source),'release_tag':release['tag_name'],'release_source_sha':upstream,
+    pair={'schema':1,'source_commit':sha,'source':str(repo),'release_tag':release['tag_name'],'release_source_sha':upstream,
           'upstream_head':require(run_git(repo,'rev-parse','origin/main')),'asset_fingerprint':asset_key(release),'local_version':local,
           'engine_bundle_sha256':digest_tree(stage/'CCBaga-B.app'),'engine_version':plistlib.loads((stage/'CCBaga-B.app/Contents/Info.plist').read_bytes())['CFBundleShortVersionString'],
           'A_signature':'self-maintained ad-hoc; no maintainer signature/notarization','B_signature':'unmodified verified official release engine',
@@ -161,6 +161,25 @@ def build_pair(root, config_path, release, api):
     return stage,pair
 
 
+def converge_source(config_path, pair):
+    """Fast-forward only our clean active worktree; no second daily source survives a successful update."""
+    config_path=Path(config_path).resolve();config=json.loads(config_path.read_text())
+    repo=(config_path.parent/config['repo']).resolve()
+    if require(run_git(repo,'status','--porcelain')):raise RuntimeError('Active source has unreviewed changes')
+    current=require(run_git(repo,'rev-parse','HEAD'))
+    if current!=pair['source_commit']:
+        require(run_git(repo,'merge-base','--is-ancestor',current,pair['source_commit']))
+        require(run_git(repo,'merge','--ff-only',pair['source_commit']))
+    names=require(run_git(repo,'ls-tree','-r','--name-only','HEAD')).splitlines()
+    from check_upstream_update import file_digest
+    atomic_json(config_path.parent/config['manifest'],{name:file_digest(repo/name) for name in names})
+    checked=require(run_git(repo,'symbolic-ref','HEAD'))
+    if checked!=config['downstream_ref']:
+        from save_downstream_snapshot import snapshot
+        snapshot(config_path,'Reviewed integrated pair source',source_commit=pair['source_commit'])
+    return str(repo)
+
+
 def apply(manager, release, api_dict, stage_only=False):
     api=SimpleNamespace(**api_dict);root=manager.root/'CCBaga'
     config=root/'downstream-update.json'
@@ -171,6 +190,7 @@ def apply(manager, release, api_dict, stage_only=False):
         event.update(upstream_sha=pair['release_source_sha'],downstream_sha=pair['source_commit'],staged_pair=str(folder))
         if stage_only:return persist_event(root,api,dict(event,status='new-integrated-pair-ready'))
         if api.running(manager.apps):return persist_event(root,api,dict(event,status='deferred-app-running'))
+        converge_source(config,pair)
         manager.install(folder,dict(release,_downstream=pair))
         verify_pair(manager.apps,pair)
         return persist_event(root,api,dict(event,status='updated-integrated',installed=True,application_replaced=True))
