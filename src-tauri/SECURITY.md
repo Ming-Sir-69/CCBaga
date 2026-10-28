@@ -1,5 +1,5 @@
 <!--
-[INPUT]: Linux/Windows 原生边界、共用清理/浏览器/CLI 实现、独立网络 Skill、回归测试与上游安全公告。
+[INPUT]: Linux/Windows 原生边界、共用清理/浏览器/CLI 实现、独立网络 Skill、固定第三方引擎来源、回归测试与上游安全公告。
 [OUTPUT]: 数据读写、外部连接、操作授权、验证范围与已确认依赖风险的当前安全契约。
 [POS]: 原生模块的安全地图；与 src/CLAUDE.md 的事务边界共同维护。
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -51,9 +51,19 @@ Windows Skill 私密文件采用用户 SID 独占且保护的 NTFS ACL，写入�
 
 ### 已确认的上游依赖风险
 
-Linux 的既有 Tauri/Wry/GTK 依赖链仍包含 `glib 0.18.5`，命中 [RUSTSEC-2024-0429](https://rustsec.org/advisories/RUSTSEC-2024-0429.html)：`VariantStrIter` 的迭代实现存在内存安全问题，官方修复版本为 `>=0.20.0`。本次静态检索应用与锁定依赖源码，未发现 `Variant::array_iter_str` / `VariantStrIter` 的应用调用路径；这不构成不可利用的证明。当前框架要求 `glib ^0.18`，单独增加新版本不能修复旧链。本轮没有隐藏或忽略该公告，也没有引入未经 Linux 优化构建验证的私有补丁；后续需兼容的框架升级或经审查的可追溯回补。
+Linux 的 Tauri/Wry/GTK3 依赖链仍要求 `glib ^0.18`。原版 `glib 0.18.5` 命中 [RUSTSEC-2024-0429](https://rustsec.org/advisories/RUSTSEC-2024-0429.html)，不能通过另加 `glib >=0.20` 替换旧 ABI。本项目以 `[patch.crates-io]` 指向 `vendor/glib`：它是 SHA-256 为 `233daaf6e83ae6a12a52055f568f9d7cf4671dabb78ff9560ab6da230ce00ee5` 的 crates.io 原包，仅应用[官方修复 b5a4071](https://github.com/gtk-rs/gtk-rs-core/commit/b5a4071e439bef2b5eea76c3aa25e5ae84839e34)的两行变更，把 C 出参改为 `let mut p` / `&mut p`。保留原版本、MIT 许可与上游源文件，不以改版本或扫描忽略伪装修复。
 
-同一既有 GTK 构建链的 `proc-macro-error 1.0.4` 命中 [RUSTSEC-2024-0370](https://rustsec.org/advisories/RUSTSEC-2024-0370.html) 的停止维护提示；这是构建期维护风险，不应冒充已确认的运行时漏洞或恶意代码。依赖扫描无新增公告不等于整库没有风险，功能测试通过也不替代安全审查。
+`python3 scripts/test-glib-backport.py` 逐文件核对原包摘要，只有上述已知回补允许偏离。Linux CI 另运行 `--native`，以真实 GLib 的优化构建执行上游 `variant_iter::tests`；完整应用仍经过 Ubuntu 22.04 原生检查。Cargo 的 registry 版本扫描不覆盖该本地路径依赖，因此 GLib 的来源验收与真实原生回归独立执行；后续新 GLib 公告仍须按受影响函数核对，不能把总体扫描零漏洞当作本地回补的自动背书。框架兼容官方安全版本后，应移除本地覆盖与对应快照。测试和审计各自报告实际结果，不将来源校验当成原生运行通过。
+
+本轮完整 Cargo 锁扫描还更新了 `rustls 0.23.46`、`rustls-webpki 0.103.16`、`webpki-root-certs 1.0.10`、前后端 `tauri-plugin-updater 2.14.1`、`zip 9.1.3` 与 `zstd 0.14.3`，处理 TLS 秘密输出/握手/证书信任、ZIP 解包与压缩流复用公告。ZIP 按官方实际修复范围选用安全版本，不仅依赖公告数据库较宽的版本判断。2026-10-27 的官方 RustSec 数据库提交 `99670cfc0bc574433034b75876a4b791ccaa2efb` 扫描此锁文件为 0 条漏洞；Vite 7.3.7 后的 Bun 扫描同样为 0。该结果只针对当时数据库和当前锁定源码，不是未来不会出现漏洞的保证。
+
+同一既有 GTK 构建链的 `proc-macro-error 1.0.4` 命中 [RUSTSEC-2024-0370](https://rustsec.org/advisories/RUSTSEC-2024-0370.html) 的停止维护提示；另有 `zbus_names 4.3.4`、`zvariant 5.15.0` 和 `zvariant_derive 5.15.0` 的停止维护提示。它们是维护风险，不应冒充已确认的运行时漏洞或恶意代码。依赖扫描无新增公告不等于整库没有风险，功能测试通过也不替代安全审查。
+
+## 第三方浏览器补丁覆盖未验证
+
+固定 Fingerprint Chromium `148.0.7778.215` 的 SHA-256 验收仅证明来源字节一致，不能证明 Chromium 安全补丁齐全。[Google Chrome CNA 的 CVE-2026-10881 原始记录](https://raw.githubusercontent.com/CVEProject/cvelistV5/main/cves/2026/10xxx/CVE-2026-10881.json) 将 Chrome `<149.0.7827.53` 列为 ANGLE 越界读写/潜在沙箱逃逸的受影响范围；固定引擎的 Chrome 基线落在该范围。尚未取得该 Fingerprint 二进制与具体修复提交的可复现映射，因此本审计将其标记为“fork 回补覆盖未验证”，不直接断言 fork 已修复或未修复。
+
+2026-10-27 核对[上游实际最新发行资产](https://github.com/adryfish/fingerprint-chromium/releases/latest)：`150.0.7871.186` 提供 Windows/Linux 资产，未提供对应 macOS 资产；上游还说明该版补丁源码延迟公开。没有可直接认定为已完成三平台兼容与安全验收的替换输入。本轮没有下载未经同等核验的新引擎，也没有关闭沙箱、TLS 或平台保护来绕过差异。后续替换必须核对实际源码/补丁、三个平台的完整 A+B 功能和安装/更新边界；应用依赖扫描零漏洞不代表这个第三方浏览器已经通过独立漏洞审计。
 
 ## 本地身份保险库
 

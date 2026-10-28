@@ -3,6 +3,7 @@
 // [POS]: 独立环境持久边界测试，不把文件样本视为真实浏览器验收。
 // [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 use super::*;
+use serde_json::{json, Value};
 
 #[cfg(target_os = "macos")]
 #[test]
@@ -353,4 +354,27 @@ fn a_corrupt_or_interrupted_environment_does_not_block_other_cleanup() {
     assert!(!directory(&root.0, &valid.id).unwrap().exists());
     assert!(broken_profile.join("Default/Cookies").exists());
     assert!(root.0.join(interrupted).exists());
+}
+
+#[test]
+fn saved_multi15_manifest_remains_readable_and_future_formats_fail_closed() {
+    let root = Fixture::new();
+    let item = create(&root.0, "已有环境", false, None, &machine()).unwrap();
+    let data = profile_data(&root.0, &item.id, "synthetic login");
+    let path = directory(&root.0, &item.id).unwrap().join(MANIFEST);
+    let mut old: Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+    old.as_object_mut().unwrap().remove("browser");
+    profile::write_json(&path, &old).unwrap();
+    assert!(load(&root.0, &item.id).unwrap().browser == BrowserKind::Fingerprint);
+    old["browser"] = json!("brave");
+    profile::write_json(&path, &old).unwrap();
+    assert!(load(&root.0, &item.id).unwrap().browser == BrowserKind::Brave);
+    let retained = fs::read(&path).unwrap();
+    old["format"] = json!(999);
+    profile::write_json(&path, &old).unwrap();
+    assert!(load(&root.0, &item.id).is_err());
+    assert_eq!(fs::read_to_string(data.join("Default/Cookies")).unwrap(), "synthetic login");
+    fs::write(&path, retained).unwrap();
+    assert!(load(&root.0, &item.id).is_ok());
+    assert_eq!(fs::read_to_string(data.join("Default/Cookies")).unwrap(), "synthetic login");
 }

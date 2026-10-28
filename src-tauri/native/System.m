@@ -1,6 +1,6 @@
 /*
  * [INPUT]: Foundation 时区与用户偏好、CoreLocation 状态、系统设置辅助功能接口。
- * [OUTPUT]: 电脑环境快照、首选语言与地区写入、管理员授权的时区修改与可核验的定位关闭。
+ * [OUTPUT]: 电脑环境快照、只读地区预检、首选语言与地区写入、管理员授权的时区修改与可核验的定位关闭。
  * [POS]: 电脑设置的 macOS 边界；定位通过系统开关关闭，不写 locationd 私有数据库。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -137,12 +137,26 @@ char *rf_system_location(void) {
         @"系统设置已打开。请完成定位总开关关闭或系统授权，返回后点击刷新；当前仍检测到定位开启。" : @"已核验：定位服务已关闭。"});
 }
 
-// ----- 地区操作由 Rust 目录限定；写入后读取偏好核验，保留其他语言 -----
+// ----- 地区操作由 Rust 目录限定；等价地区标识共用只读校验，写入后读回 -----
+static BOOL validRegion(NSString *language, NSString *locale) {
+    NSArray *allowed = @[@"en-US", @"en-CA", @"en-GB", @"en-SG", @"en-AU", @"fr", @"de", @"ja", @"ko", @"zh-Hans", @"zh-Hant"];
+    if (![allowed containsObject:language] || !locale.length) return NO;
+    // macOS 的 zh_Hans_CN 与目录的 zh_CN 先规范化再比较，仍以系统地区目录为边界。
+    NSString *canonical = [NSLocale canonicalLocaleIdentifierFromString:locale];
+    for (NSString *available in NSLocale.availableLocaleIdentifiers) {
+        if ([canonical isEqual:[NSLocale canonicalLocaleIdentifierFromString:available]]) return YES;
+    }
+    return NO;
+}
+char *rf_system_region_validate(const char *languageValue, const char *localeValue) {
+    if (!validRegion([NSString stringWithUTF8String:languageValue], [NSString stringWithUTF8String:localeValue]))
+        return systemResponse(@{@"error": @"语言或地区格式无效。"});
+    return systemResponse(@{@"ok": @YES});
+}
 char *rf_system_region(const char *languageValue, const char *localeValue) {
     NSString *language = [NSString stringWithUTF8String:languageValue];
     NSString *locale = [NSString stringWithUTF8String:localeValue];
-    NSArray *allowed = @[@"en-US", @"en-CA", @"en-GB", @"en-SG", @"en-AU", @"fr", @"de", @"ja", @"ko", @"zh-Hans", @"zh-Hant"];
-    if (![allowed containsObject:language] || ![NSLocale.availableLocaleIdentifiers containsObject:locale])
+    if (!validRegion(language, locale))
         return systemResponse(@{@"error": @"语言或地区格式无效。"});
     NSMutableArray *languages = [savedLanguages() mutableCopy];
     [languages removeObject:language]; [languages insertObject:language atIndex:0];

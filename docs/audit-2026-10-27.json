@@ -1,0 +1,699 @@
+{
+  "input": "GitHub全部可访问PR/Issue、基线bdfb90c、真实源代码及隔离回归",
+  "output": "逐项审计决定、修复与验收证据；不把源码通过当作公开安装包交付",
+  "pos": "2026-10-27全库PR/Issue审计记录",
+  "protocol": "[PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md",
+  "baseline": "bdfb90c",
+  "inventory_utc": "2026-10-28T02:32:52.277261+00:00",
+  "counts": {
+    "pull_requests": 54,
+    "initial_open_pull_requests": 15,
+    "issues": 12,
+    "initial_open_issues": 4
+  },
+  "pull_requests": [
+    {
+      "number": 67,
+      "url": "https://github.com/liseami/CCBaga/pull/67",
+      "initial_state": "open",
+      "head": "6e374e204365525b3412878d275d8fde70999d3f",
+      "decision": "按固定13地区契约拒绝扩展，未知目标不冒充通过",
+      "title": "fix: add Chicago region preset for environment verification",
+      "final_state": "closed",
+      "merged_at": null
+    },
+    {
+      "number": 65,
+      "url": "https://github.com/liseami/CCBaga/pull/65",
+      "initial_state": "open",
+      "head": "a8323d66daf7ad73afaf72375bf1d10a08a9619c",
+      "decision": "macOS 地区别名按语义核验，系统修改前只读预检",
+      "title": "fix(macos): accept canonical system locale aliases",
+      "final_state": "merged",
+      "merged_at": "2026-10-28T03:02:32Z"
+    },
+    {
+      "number": 64,
+      "url": "https://github.com/liseami/CCBaga/pull/64",
+      "initial_state": "open",
+      "head": "690c1062499d1a6b5a8515cad2f462a11773d554",
+      "decision": "采用并升级至前后端 updater 2.14.1/ZIP 9.1.3，进一步修复实际解包公告，版本签名强校验保留",
+      "title": "build(deps): bump tauri-plugin-updater from 2.13.3 to 2.14.0 in /src-tauri",
+      "final_state": "merged",
+      "merged_at": "2026-10-28T03:02:32Z"
+    },
+    {
+      "number": 63,
+      "url": "https://github.com/liseami/CCBaga/pull/63",
+      "initial_state": "open",
+      "head": "96ea745872b60befdfc9c47ebcb1674e03b6f6e1",
+      "decision": "升级 serde_json 1.0.154",
+      "title": "build(deps): bump serde_json from 1.0.151 to 1.0.154 in /src-tauri",
+      "final_state": "merged",
+      "merged_at": "2026-10-28T03:02:32Z"
+    },
+    {
+      "number": 62,
+      "url": "https://github.com/liseami/CCBaga/pull/62",
+      "initial_state": "open",
+      "head": "794e056e5aed2d252d7fcb3d6ed452168872e353",
+      "decision": "根 Base64 升级 0.23.1，保持现有编码 API",
+      "title": "build(deps): bump base64 from 0.22.1 to 0.23.1 in /src-tauri",
+      "final_state": "merged",
+      "merged_at": "2026-10-28T03:02:32Z"
+    },
+    {
+      "number": 61,
+      "url": "https://github.com/liseami/CCBaga/pull/61",
+      "initial_state": "open",
+      "head": "f235b5db4b9dae61d03b965f0ba4dfe0159351e8",
+      "decision": "升级 Tokio 1.54.1",
+      "title": "build(deps): bump tokio from 1.53.2 to 1.54.1 in /src-tauri",
+      "final_state": "merged",
+      "merged_at": "2026-10-28T03:02:33Z"
+    },
+    {
+      "number": 60,
+      "url": "https://github.com/liseami/CCBaga/pull/60",
+      "initial_state": "open",
+      "head": "6c18fbc3bb6e52cdecfff23ce17523c17231c467",
+      "decision": "固定官方 rust-cache 2.9.3 提交，保持缓存权限与基线",
+      "title": "build(deps): bump Swatinem/rust-cache from 2.9.2 to 2.9.3",
+      "final_state": "merged",
+      "merged_at": "2026-10-28T03:02:32Z"
+    },
+    {
+      "number": 59,
+      "url": "https://github.com/liseami/CCBaga/pull/59",
+      "initial_state": "open",
+      "head": "f45cc328c19e2bd1548424b10b26caf86e2163a2",
+      "decision": "升级 Tauri 2.12.2 并提高最低版本，防锁回退",
+      "title": "build(deps): bump tauri from 2.12.1 to 2.12.2 in /src-tauri",
+      "final_state": "merged",
+      "merged_at": "2026-10-28T03:02:32Z"
+    },
+    {
+      "number": 58,
+      "url": "https://github.com/liseami/CCBaga/pull/58",
+      "initial_state": "open",
+      "head": "dd99a3707ae4bcaccd90943b102e4d3c1a6b7126",
+      "decision": "固定官方 setup-python 7.1.0 提交，保持最小权限",
+      "title": "build(deps): bump actions/setup-python from 6.3.0 to 7.1.0",
+      "final_state": "merged",
+      "merged_at": "2026-10-28T03:02:32Z"
+    },
+    {
+      "number": 57,
+      "url": "https://github.com/liseami/CCBaga/pull/57",
+      "initial_state": "open",
+      "head": "9d0bf24f1843269f84e49bcefed35fb221fe5709",
+      "decision": "核对实际资料参数/目录设备 inode/进程身份，未知归属阻止资料操作",
+      "title": "fix(macos): verify requested browser profile ownership",
+      "final_state": "merged",
+      "merged_at": "2026-10-28T03:02:32Z"
+    },
+    {
+      "number": 55,
+      "url": "https://github.com/liseami/CCBaga/pull/55",
+      "initial_state": "open",
+      "head": "98eba9c3217a02b83fcd5bb9b47abee7382a542d",
+      "decision": "转义 SSH 配置路径及百分号，拒绝环境变量展开，保持严格主机指纹验证",
+      "title": "fix(network): escape known_hosts paths for OpenSSH",
+      "final_state": "merged",
+      "merged_at": "2026-10-28T03:02:32Z"
+    },
+    {
+      "number": 54,
+      "url": "https://github.com/liseami/CCBaga/pull/54",
+      "initial_state": "open",
+      "head": "742855238458affb00dbde4c114c62a3511174cc",
+      "decision": "保留 POSIX 地区覆盖，浏览器与系统预检共同修正",
+      "title": "fix(linux): keep a POSIX region override after the codeset",
+      "final_state": "merged",
+      "merged_at": "2026-10-28T03:02:32Z"
+    },
+    {
+      "number": 53,
+      "url": "https://github.com/liseami/CCBaga/pull/53",
+      "initial_state": "open",
+      "head": "27b26efd771fd63f3d0bb7569af6d77ab96407b3",
+      "decision": "接受显式方案默认代理端口，继续拒绝无端口/认证/额外 URL 语法",
+      "title": "fix(browser): accept an explicit default proxy port",
+      "final_state": "merged",
+      "merged_at": "2026-10-28T03:02:32Z"
+    },
+    {
+      "number": 52,
+      "url": "https://github.com/liseami/CCBaga/pull/52",
+      "initial_state": "open",
+      "head": "812d24058670718e5f04242878bd6888e7449fa1",
+      "decision": "沿用暂缓 Intel 维护决定，不纳入官方支持",
+      "title": "feat: add experimental Intel macOS A+B source builds",
+      "final_state": "closed",
+      "merged_at": null
+    },
+    {
+      "number": 50,
+      "url": "https://github.com/liseami/CCBaga/pull/50",
+      "initial_state": "open",
+      "head": "90404e210b2bb7bb76bf2f775fb2237654fa648f",
+      "decision": "采用并收窄 debug 指针例外；恢复备份白名单脱离磁盘发现，错误日志去重",
+      "title": "Fix identity round trips for generated Claude paths",
+      "final_state": "merged",
+      "merged_at": "2026-10-28T03:02:32Z"
+    },
+    {
+      "number": 48,
+      "url": "https://github.com/liseami/CCBaga/pull/48",
+      "initial_state": "merged",
+      "head": "c6c817ee12429ce5dd96feb7d4799f4513c4d449",
+      "decision": "既有合并提交在基线祖先中；相关现有行为由本轮跨模块回归复核",
+      "title": "build(deps): bump zeroize from 1.9.0 to 1.9.1 in /src-tauri",
+      "final_state": "merged",
+      "merged_at": "2026-10-19T10:44:29Z"
+    },
+    {
+      "number": 47,
+      "url": "https://github.com/liseami/CCBaga/pull/47",
+      "initial_state": "merged",
+      "head": "659920d1c0db94f3ac62dcc11a3f663de61ccc54",
+      "decision": "既有合并提交在基线祖先中；相关现有行为由本轮跨模块回归复核",
+      "title": "build(deps): bump sha2 from 0.10.9 to 0.11.1 in /src-tauri",
+      "final_state": "merged",
+      "merged_at": "2026-10-19T10:44:29Z"
+    },
+    {
+      "number": 46,
+      "url": "https://github.com/liseami/CCBaga/pull/46",
+      "initial_state": "merged",
+      "head": "b40d885c385ce9c77a2d9714da97037387e63ef4",
+      "decision": "既有合并提交在基线祖先中；相关现有行为由本轮跨模块回归复核",
+      "title": "build(deps): bump zstd from 0.13.3 to 0.14.2 in /src-tauri",
+      "final_state": "merged",
+      "merged_at": "2026-10-19T10:44:29Z"
+    },
+    {
+      "number": 45,
+      "url": "https://github.com/liseami/CCBaga/pull/45",
+      "initial_state": "merged",
+      "head": "e5a76cea3c2c63ce57d55bd018513f0256997ac0",
+      "decision": "既有合并提交在基线祖先中；相关现有行为由本轮跨模块回归复核",
+      "title": "build(deps): bump windows-sys from 0.59.0 to 0.61.2 in /src-tauri",
+      "final_state": "merged",
+      "merged_at": "2026-10-19T10:44:29Z"
+    },
+    {
+      "number": 44,
+      "url": "https://github.com/liseami/CCBaga/pull/44",
+      "initial_state": "merged",
+      "head": "d99f950d4cd58c995c4231ca9028dd63f561904e",
+      "decision": "既有合并提交在基线祖先中；相关现有行为由本轮跨模块回归复核",
+      "title": "build(deps): bump tauri-build from 2.7.1 to 2.7.2 in /src-tauri",
+      "final_state": "merged",
+      "merged_at": "2026-10-19T10:44:29Z"
+    },
+    {
+      "number": 43,
+      "url": "https://github.com/liseami/CCBaga/pull/43",
+      "initial_state": "merged",
+      "head": "fd702dac58a068222830678f0c17c87fdcdee154",
+      "decision": "既有合并提交在基线祖先中；相关现有行为由本轮跨模块回归复核",
+      "title": "build(deps): bump Swatinem/rust-cache from 49a0bdc70d2e1b713ca9e2869b211fcce03d3c1c to 6323deb102c322ba6fcbdcafc7e3dddab59af2b6",
+      "final_state": "merged",
+      "merged_at": "2026-10-19T10:44:29Z"
+    },
+    {
+      "number": 42,
+      "url": "https://github.com/liseami/CCBaga/pull/42",
+      "initial_state": "merged",
+      "head": "afd127f20f1fb2123b3e2b29a66c3b0242fce22c",
+      "decision": "既有合并提交在基线祖先中；相关现有行为由本轮跨模块回归复核",
+      "title": "feat(identities): add in-place backup, saved card summaries, offline plan/auth badges, and active session preview",
+      "final_state": "merged",
+      "merged_at": "2026-10-19T10:44:29Z"
+    },
+    {
+      "number": 41,
+      "url": "https://github.com/liseami/CCBaga/pull/41",
+      "initial_state": "closed",
+      "head": "20d1243394989c4cf68a4304fec61e98ea7c5fc2",
+      "decision": "维护者此前决定暂缓 Intel，未合入",
+      "title": "添加 macOS Intel 完整引擎与双架构交付支持",
+      "final_state": "closed",
+      "merged_at": null
+    },
+    {
+      "number": 38,
+      "url": "https://github.com/liseami/CCBaga/pull/38",
+      "initial_state": "merged",
+      "head": "16c4a4ef6195fc98dcb7205fbdcd59f5ed9856fe",
+      "decision": "既有合并提交在基线祖先中；相关现有行为由本轮跨模块回归复核",
+      "title": "fix(linux): escape double quotes correctly in the default-browser desktop Exec",
+      "final_state": "merged",
+      "merged_at": "2026-10-19T10:44:29Z"
+    },
+    {
+      "number": 37,
+      "url": "https://github.com/liseami/CCBaga/pull/37",
+      "initial_state": "merged",
+      "head": "00d9986fd6ef079e6f659326deea15adb3770c10",
+      "decision": "既有合并提交在基线祖先中；相关现有行为由本轮跨模块回归复核",
+      "title": "fix(skill): reject mistyped IPv4 literals as VPS or proxy hostnames",
+      "final_state": "merged",
+      "merged_at": "2026-10-19T10:44:29Z"
+    },
+    {
+      "number": 36,
+      "url": "https://github.com/liseami/CCBaga/pull/36",
+      "initial_state": "merged",
+      "head": "1c4561ab37e3350b0529c553bf1a79c0bb444946",
+      "decision": "既有合并提交在基线祖先中；相关现有行为由本轮跨模块回归复核",
+      "title": "fix(skill): reject scoped IPv6 literals as VPS, proxy host or exit IP",
+      "final_state": "merged",
+      "merged_at": "2026-10-19T10:44:29Z"
+    },
+    {
+      "number": 35,
+      "url": "https://github.com/liseami/CCBaga/pull/35",
+      "initial_state": "merged",
+      "head": "5303db77a5c47461a701497bfc0dfe9ee81dacfe",
+      "decision": "既有合并提交在基线祖先中；相关现有行为由本轮跨模块回归复核",
+      "title": "fix(linux): escape double quotes correctly in desktop Exec paths",
+      "final_state": "merged",
+      "merged_at": "2026-10-19T10:44:29Z"
+    },
+    {
+      "number": 33,
+      "url": "https://github.com/liseami/CCBaga/pull/33",
+      "initial_state": "merged",
+      "head": "da54dd7191a92ab70b606017916ca2fd73486f3d",
+      "decision": "既有合并提交在基线祖先中；相关现有行为由本轮跨模块回归复核",
+      "title": "fix: recognize follow-machine region independently of language script",
+      "final_state": "merged",
+      "merged_at": "2026-10-15T13:16:11Z"
+    },
+    {
+      "number": 31,
+      "url": "https://github.com/liseami/CCBaga/pull/31",
+      "initial_state": "merged",
+      "head": "a04a72cf6b4887839c8b1c3f1bcda5de5efa07f8",
+      "decision": "既有合并提交在基线祖先中；相关现有行为由本轮跨模块回归复核",
+      "title": "fix(browser): reject IPv6 exit addresses that carry URL syntax",
+      "final_state": "merged",
+      "merged_at": "2026-10-15T13:16:11Z"
+    },
+    {
+      "number": 30,
+      "url": "https://github.com/liseami/CCBaga/pull/30",
+      "initial_state": "merged",
+      "head": "21460ff48bd2cc8261d2ec1cb5e61f0d2d8f7686",
+      "decision": "既有合并提交在基线祖先中；相关现有行为由本轮跨模块回归复核",
+      "title": "fix(ui): carry formatBytes rounding into the next unit",
+      "final_state": "merged",
+      "merged_at": "2026-10-15T13:16:11Z"
+    },
+    {
+      "number": 29,
+      "url": "https://github.com/liseami/CCBaga/pull/29",
+      "initial_state": "merged",
+      "head": "0f102ba51e93492ed7203d7bdea6d6719b7d6d1f",
+      "decision": "既有合并提交在基线祖先中；相关现有行为由本轮跨模块回归复核",
+      "title": "fix(network): reject non-string expected exit IP in connection config",
+      "final_state": "merged",
+      "merged_at": "2026-10-15T13:16:11Z"
+    },
+    {
+      "number": 28,
+      "url": "https://github.com/liseami/CCBaga/pull/28",
+      "initial_state": "merged",
+      "head": "0e569b99943ccc9af755beccea5536e92505b96b",
+      "decision": "既有合并提交在基线祖先中；相关现有行为由本轮跨模块回归复核",
+      "title": "fix: verbatim Win32 paths keep identity staging working past MAX_PATH",
+      "final_state": "merged",
+      "merged_at": "2026-10-15T13:16:11Z"
+    },
+    {
+      "number": 27,
+      "url": "https://github.com/liseami/CCBaga/pull/27",
+      "initial_state": "merged",
+      "head": "90a89eaeb6fa06f3e7555fa607be06c574ec42e5",
+      "decision": "既有合并提交在基线祖先中；相关现有行为由本轮跨模块回归复核",
+      "title": "docs: add Chinese README entry",
+      "final_state": "merged",
+      "merged_at": "2026-10-15T13:16:11Z"
+    },
+    {
+      "number": 26,
+      "url": "https://github.com/liseami/CCBaga/pull/26",
+      "initial_state": "merged",
+      "head": "3c1e69d73de8ac135835875f775acf3f857deaf4",
+      "decision": "既有合并提交在基线祖先中；相关现有行为由本轮跨模块回归复核",
+      "title": "fix(network): 修正 Claude 出口 downloads 恒 403 并新增 platform.claude.com 探针",
+      "final_state": "merged",
+      "merged_at": "2026-10-15T13:16:11Z"
+    },
+    {
+      "number": 25,
+      "url": "https://github.com/liseami/CCBaga/pull/25",
+      "initial_state": "merged",
+      "head": "d51361588218432a137b55583af7540478f5b03a",
+      "decision": "既有合并提交在基线祖先中；相关现有行为由本轮跨模块回归复核",
+      "title": "fix(windows): 兼容管理员默认文件所有者并保护既有父级目录 DACL",
+      "final_state": "merged",
+      "merged_at": "2026-10-15T13:16:11Z"
+    },
+    {
+      "number": 24,
+      "url": "https://github.com/liseami/CCBaga/pull/24",
+      "initial_state": "merged",
+      "head": "38640f7aee80dc7548126ca2957dd6bb05e04cc9",
+      "decision": "既有合并提交在基线祖先中；相关现有行为由本轮跨模块回归复核",
+      "title": "fix: 完善账号与桌面存储隔离、代理回环豁免、身份保险库回收与Windows系统对齐",
+      "final_state": "merged",
+      "merged_at": "2026-10-15T13:16:11Z"
+    },
+    {
+      "number": 21,
+      "url": "https://github.com/liseami/CCBaga/pull/21",
+      "initial_state": "merged",
+      "head": "7ffb281e8b37073488217c0f1654e944d0c9862d",
+      "decision": "既有合并提交在基线祖先中；相关现有行为由本轮跨模块回归复核",
+      "title": "feat: CLI 重装失败回滚保护、核心域名分流诊断与空身份文案校正",
+      "final_state": "merged",
+      "merged_at": "2026-10-14T02:05:23Z"
+    },
+    {
+      "number": 20,
+      "url": "https://github.com/liseami/CCBaga/pull/20",
+      "initial_state": "merged",
+      "head": "aff6122719c479effd4d53c7d875bcc3c04edcc8",
+      "decision": "既有合并提交在基线祖先中；相关现有行为由本轮跨模块回归复核",
+      "title": "feat: add concise bilingual guide and intended-use statement",
+      "final_state": "merged",
+      "merged_at": "2026-10-13T02:06:38Z"
+    },
+    {
+      "number": 19,
+      "url": "https://github.com/liseami/CCBaga/pull/19",
+      "initial_state": "merged",
+      "head": "e2f4e5cc6be554ed1321ed496227cd2d85a85fab",
+      "decision": "既有合并提交在基线祖先中；相关现有行为由本轮跨模块回归复核",
+      "title": "docs: 完善双语使用说明与 Claude 账号风险提示",
+      "final_state": "merged",
+      "merged_at": "2026-10-13T02:06:38Z"
+    },
+    {
+      "number": 18,
+      "url": "https://github.com/liseami/CCBaga/pull/18",
+      "initial_state": "merged",
+      "head": "52b5dab951e82510243e1084f211b056194137a7",
+      "decision": "既有合并提交在基线祖先中；相关现有行为由本轮跨模块回归复核",
+      "title": "fix: complete installer recovery and browser resource validation",
+      "final_state": "merged",
+      "merged_at": "2026-10-13T01:10:09Z"
+    },
+    {
+      "number": 17,
+      "url": "https://github.com/liseami/CCBaga/pull/17",
+      "initial_state": "merged",
+      "head": "d0fa5499a2aeb81620f9b303afca2987f161f665",
+      "decision": "既有合并提交在基线祖先中；相关现有行为由本轮跨模块回归复核",
+      "title": "fix: allow retry after interrupted engine preparation",
+      "final_state": "merged",
+      "merged_at": "2026-10-13T01:10:11Z"
+    },
+    {
+      "number": 16,
+      "url": "https://github.com/liseami/CCBaga/pull/16",
+      "initial_state": "merged",
+      "head": "e2ff76b6db7bd49bc74da2af4afb2d91ae53560e",
+      "decision": "既有合并提交在基线祖先中；相关现有行为由本轮跨模块回归复核",
+      "title": "fix: retain installer recovery copies when rollback fails",
+      "final_state": "merged",
+      "merged_at": "2026-10-13T01:10:11Z"
+    },
+    {
+      "number": 15,
+      "url": "https://github.com/liseami/CCBaga/pull/15",
+      "initial_state": "merged",
+      "head": "40b9e61867f874febf0712b79bb92a215dcf7542",
+      "decision": "既有合并提交在基线祖先中；相关现有行为由本轮跨模块回归复核",
+      "title": "fix: replace stale Linux browser build resources",
+      "final_state": "merged",
+      "merged_at": "2026-10-13T01:10:11Z"
+    },
+    {
+      "number": 14,
+      "url": "https://github.com/liseami/CCBaga/pull/14",
+      "initial_state": "merged",
+      "head": "3a87e996855efc4c9cdd84b788b1889a9fa72716",
+      "decision": "既有合并提交在基线祖先中；相关现有行为由本轮跨模块回归复核",
+      "title": "fix: require platform checksum coverage before release assembly",
+      "final_state": "merged",
+      "merged_at": "2026-10-13T01:10:11Z"
+    },
+    {
+      "number": 13,
+      "url": "https://github.com/liseami/CCBaga/pull/13",
+      "initial_state": "merged",
+      "head": "c3db30c35a8afadcc3ab188a226c9abc20c39168",
+      "decision": "既有合并提交在基线祖先中；相关现有行为由本轮跨模块回归复核",
+      "title": "fix: preserve working Linux installations when browser resources are incomplete",
+      "final_state": "merged",
+      "merged_at": "2026-10-13T01:10:11Z"
+    },
+    {
+      "number": 12,
+      "url": "https://github.com/liseami/CCBaga/pull/12",
+      "initial_state": "merged",
+      "head": "d88bd45e5f560161f0a2907f5ae1d7a1e57da028",
+      "decision": "既有合并提交在基线祖先中；相关现有行为由本轮跨模块回归复核",
+      "title": "修复 Windows 清理范围与网络 Skill 可移植性",
+      "final_state": "merged",
+      "merged_at": "2026-10-12T15:10:04Z"
+    },
+    {
+      "number": 11,
+      "url": "https://github.com/liseami/CCBaga/pull/11",
+      "initial_state": "merged",
+      "head": "c764f64b6fdb788051b4a770a420ee93c8b18d8a",
+      "decision": "既有合并提交在基线祖先中；相关现有行为由本轮跨模块回归复核",
+      "title": "Fix Windows native Claude Code reinstall bootstrap decoding",
+      "final_state": "merged",
+      "merged_at": "2026-10-12T13:48:16Z"
+    },
+    {
+      "number": 10,
+      "url": "https://github.com/liseami/CCBaga/pull/10",
+      "initial_state": "merged",
+      "head": "17240dd5baa5328a2bebd0776fbf5076762e7a5e",
+      "decision": "既有合并提交在基线祖先中；相关现有行为由本轮跨模块回归复核",
+      "title": "Run read-only cross-platform checks on pull requests",
+      "final_state": "merged",
+      "merged_at": "2026-10-12T11:07:41Z"
+    },
+    {
+      "number": 7,
+      "url": "https://github.com/liseami/CCBaga/pull/7",
+      "initial_state": "merged",
+      "head": "2a4f0a5aa68db3598566ea496b6354373a95c0f0",
+      "decision": "既有合并提交在基线祖先中；相关现有行为由本轮跨模块回归复核",
+      "title": "feat: add native Windows 10/11 support for CCBaga-A and CCBaga-B",
+      "final_state": "merged",
+      "merged_at": "2026-10-12T08:07:29Z"
+    },
+    {
+      "number": 6,
+      "url": "https://github.com/liseami/CCBaga/pull/6",
+      "initial_state": "merged",
+      "head": "951065355484e4b66ea76847948426568d86413b",
+      "decision": "既有合并提交在基线祖先中；相关现有行为由本轮跨模块回归复核",
+      "title": "Add Linux x86_64 support with native Arch packaging",
+      "final_state": "merged",
+      "merged_at": "2026-10-12T01:19:47Z"
+    },
+    {
+      "number": 4,
+      "url": "https://github.com/liseami/CCBaga/pull/4",
+      "initial_state": "closed",
+      "head": "8f20daf49a6efc3ca6eaf2def9fb1c4d53888313",
+      "decision": "保持现有来源证明固定提交，旧目标不可访问，不复用失效 SHA",
+      "title": "Bump actions/attest-build-provenance from 8beda2b7ed98355c0e97c0a63bec38ae472e66c4 to 4d101475d8b20a2381f78447822ac1eab6504dd8",
+      "final_state": "closed",
+      "merged_at": null
+    },
+    {
+      "number": 3,
+      "url": "https://github.com/liseami/CCBaga/pull/3",
+      "initial_state": "closed",
+      "head": "8baebbb942166a83f1584464abc5744a988bbb41",
+      "decision": "由已合入 sha2 0.11.1 替代",
+      "title": "Bump sha2 from 0.10.9 to 0.11.0 in /src-tauri",
+      "final_state": "closed",
+      "merged_at": null
+    },
+    {
+      "number": 2,
+      "url": "https://github.com/liseami/CCBaga/pull/2",
+      "initial_state": "closed",
+      "head": "b1f96577484b77d95a99603359b3d6c6c0b42de3",
+      "decision": "保持既有 checkout v6 固定提交，历史 v7 请求已关闭未纳入",
+      "title": "Bump actions/checkout from 6.1.0 to 7.0.1",
+      "final_state": "closed",
+      "merged_at": null
+    },
+    {
+      "number": 1,
+      "url": "https://github.com/liseami/CCBaga/pull/1",
+      "initial_state": "closed",
+      "head": "1d6f43fedb2cb574e7e92ea84dbbef629a16495c",
+      "decision": "当前采用更高的 setup-python 7.1.0",
+      "title": "Bump actions/setup-python from 6.3.0 to 7.0.0",
+      "final_state": "closed",
+      "merged_at": null
+    }
+  ],
+  "issues": [
+    {
+      "number": 66,
+      "url": "https://github.com/liseami/CCBaga/issues/66",
+      "initial_state": "open",
+      "decision": "本地身份管理和环境检测不保证防封或账号被服务端接受",
+      "final_state": "closed"
+    },
+    {
+      "number": 56,
+      "url": "https://github.com/liseami/CCBaga/issues/56",
+      "initial_state": "open",
+      "decision": "未勾选保留历史即随身份归档；核实对应卡片并通过应用恢复，已删除数据不保证可恢复",
+      "final_state": "closed"
+    },
+    {
+      "number": 51,
+      "url": "https://github.com/liseami/CCBaga/issues/51",
+      "initial_state": "open",
+      "decision": "沿用维护者暂缓 Intel 的决定；不扩展官方平台承诺",
+      "final_state": "closed"
+    },
+    {
+      "number": 49,
+      "url": "https://github.com/liseami/CCBaga/issues/49",
+      "initial_state": "open",
+      "decision": "修复已实现并验证；需公开安装产物验收后关闭，避免源码提交提前冒充交付",
+      "final_state": "open_pending_verified_release"
+    },
+    {
+      "number": 40,
+      "url": "https://github.com/liseami/CCBaga/issues/40",
+      "initial_state": "closed",
+      "decision": "已关闭条目按实际已有修复与当前文档/回归复核",
+      "final_state": "closed"
+    },
+    {
+      "number": 39,
+      "url": "https://github.com/liseami/CCBaga/issues/39",
+      "initial_state": "closed",
+      "decision": "已关闭条目按实际已有修复与当前文档/回归复核",
+      "final_state": "closed"
+    },
+    {
+      "number": 34,
+      "url": "https://github.com/liseami/CCBaga/issues/34",
+      "initial_state": "closed",
+      "decision": "已关闭条目按实际已有修复与当前文档/回归复核",
+      "final_state": "closed"
+    },
+    {
+      "number": 23,
+      "url": "https://github.com/liseami/CCBaga/issues/23",
+      "initial_state": "closed",
+      "decision": "已关闭条目按实际已有修复与当前文档/回归复核",
+      "final_state": "closed"
+    },
+    {
+      "number": 22,
+      "url": "https://github.com/liseami/CCBaga/issues/22",
+      "initial_state": "closed",
+      "decision": "已关闭条目按实际已有修复与当前文档/回归复核",
+      "final_state": "closed"
+    },
+    {
+      "number": 9,
+      "url": "https://github.com/liseami/CCBaga/issues/9",
+      "initial_state": "closed",
+      "decision": "已关闭条目按实际已有修复与当前文档/回归复核",
+      "final_state": "closed"
+    },
+    {
+      "number": 8,
+      "url": "https://github.com/liseami/CCBaga/issues/8",
+      "initial_state": "closed",
+      "decision": "已关闭条目按实际已有修复与当前文档/回归复核",
+      "final_state": "closed"
+    },
+    {
+      "number": 5,
+      "url": "https://github.com/liseami/CCBaga/issues/5",
+      "initial_state": "closed",
+      "decision": "已关闭条目按实际已有修复与当前文档/回归复核",
+      "final_state": "closed"
+    }
+  ],
+  "security_changes": [
+    "精确debug指针例外，不放宽通用链接与归档认证",
+    "浏览器资料真实进程归属和未知传播",
+    "SSH配置值字面路径与不加载用户SSH配置",
+    "地区修改前只读预检与有效地区覆盖",
+    "Vite7.3.7修复开发链公告",
+    "glib0.18.5保留ABI并逐字回补官方可变出参修复",
+    "三平台浏览器资料归属共同收紧，Windows/Unix目录别名、重复argv和未知状态阻止错误资料操作",
+    "完整RustSec扫描追加TLS/证书根/ZIP/Zstd安全补丁，10条漏洞归零",
+    "只读PR/main增加独立Bun/Rust实时依赖扫描，停止维护提示原样保留"
+  ],
+  "validation": {
+    "frontend_unit": "23 passed, 4464 assertions; Vite7.3.7 production build passed; Bun audit0",
+    "identity_native": "50 passed, 1 existing manual benchmark ignored",
+    "ui_chromium": "67 passed, isolated IPC and persistent profiles",
+    "glib_optimized": "11 upstream iterator tests passed; source provenance passed",
+    "macos_profile": "77 native boundary checks passed",
+    "skill_offline": "12 passed with complete production SSH argv and -G; -F none excludes user configuration",
+    "installer_boundaries": "fetch4/install8/assembly2/Linux15(skip1)/package8/sign/release-env passed",
+    "full_native": "latest CI: macOS121 / Ubuntu129 / Windows123 passed, each0 failed and2 existing manual ignored; four jobs success",
+    "cross_platform_ci": "success: https://github.com/liseami/CCBaga/actions/runs/40623572344 on3bf870b962d575476407b7366b66d6283bf47ad3",
+    "linux_profile": "real Ubuntu129 tests, all6 Linux tests and installer/packaging/RPM passed",
+    "rust_advisories": "0 vulnerabilities, 4 unmaintained warnings; official DB99670cfc0bc574433034b75876a4b791ccaa2efb (1380 advisories); local GLib source/native proof separate",
+    "workflow": "four-job CI success; actionlint/YAML passed",
+    "windows_profile": "real MSVC whole-app123 tests plus PowerShell13 tests passed; query-onlyargv/aliases/owners/DACL/longpaths verified",
+    "browser_supply_chain": "pinned bytes/engine version only; CVE-2026-10881 Chrome baseline affected, fork-specific backport unverified; latest150 Win/Linux only, no unverified replacement performed",
+    "windows_provenance": "real Windows121 source file hashes and explicitUTF8 passed; localautocrlf=true clone also verified"
+  },
+  "limits": [
+    "同用户/管理员与第三方浏览器不是保险库的绝对隔离边界",
+    "账号服务端有效性/防封不在本地测试保证范围",
+    "真实Windows/Linux运行以三平台CI实际结果记录",
+    "公开发布仍需所有者视觉验收与正式签名产物验收",
+    "GTK构建链停止维护提示仍需框架后续迁移",
+    "Fingerprint Chromium148的Chrome基线在Google CNA公告范围内，fork具体回补未知；上游150无macOS资产且源码延迟，无三平台已验替换，详SECURITY.md"
+  ],
+  "github_actions": {
+    "closed_not_planned": [
+      "PR52",
+      "PR67",
+      "Issue51"
+    ],
+    "answered_closed": [
+      "Issue56",
+      "Issue66"
+    ],
+    "issue49": "open pending public installer verification; removed PR50 premature closing keyword",
+    "accepted_prs": "all13 original PRs are merged; original ancestry retained",
+    "open_pull_requests": 0,
+    "open_issues": [
+      49
+    ],
+    "source_integration_pr": 68,
+    "source_merge_commit": "de29f9ff23996818a12417bc2b192db13d008bc4",
+    "report_updated_utc": "2026-10-28T03:04:29.090233+00:00",
+    "public_delivery": "not published; issue49 awaits verified installer; owner visual/release authorization and browser patch-coverage boundary remain"
+  }
+}

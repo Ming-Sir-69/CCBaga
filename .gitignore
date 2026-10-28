@@ -40,3 +40,4 @@ identity-vault/
 *.baga
 identities.sqlite*
 key.bin
+vendor/glib/Cargo.lock

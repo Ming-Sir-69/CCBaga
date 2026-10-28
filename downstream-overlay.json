@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "upstream_url": "https://github.com/liseami/CCBaga.git",
+  "upstream_baseline": "f26fef6f41176436e16d65a6ed72e55c89300c5b",
+  "upstream_release": "v0.2.49",
+  "previous_downstream": "60d3f1fc15783f1971018b2de4dda52cdf3da81c",
+  "overlay": "named isolated environments, existing owned Brave compatibility, unified target GUI, browser discovery, gated source updates",
+  "upstream_owned": ["PR57 profile argument/directory/process ownership", "PR68 stricter lock PID and unknown metadata handling", "official 13 region presets"],
+  "downstream_native_adapter": "Shared upstream ownership primitives; explicit Brave identity adapter and per-profile window/activity lifecycle only",
+  "region_extensions": [],
+  "chicago_policy": "Not a preset; rejected by official matching; never substitute Los Angeles. No local requirement justifies adding it now.",
+  "environment_format": 1,
+  "migration": "No installed data migration; legacy missing-browser manifests default to fingerprint, existing Brave retained, future formats rejected",
+  "update_entry": "scripts/downstream/prepare_update.py",
+  "deployment_policy": "Stage after all gates; require exact source/binary native acceptance and idle downstream app before transactional install",
+  "platform_acceptance": "macOS only; downstream Linux/Windows live acceptance remains pending"
+}

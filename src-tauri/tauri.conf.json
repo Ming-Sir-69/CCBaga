@@ -38,7 +38,8 @@
       "../dist/": "browser-ui/",
       "../browser-runtime/version.txt": "browser-runtime/version.txt",
       "../browser-runtime/LICENSE.fingerprint-chromium": "browser-runtime/LICENSE.fingerprint-chromium",
-      "../assets/ai-icons/LICENSE.lobehub.txt": "licenses/LICENSE.lobehub.txt"
+      "../assets/ai-icons/LICENSE.lobehub.txt": "licenses/LICENSE.lobehub.txt",
+      "../vendor/glib/LICENSE": "licenses/LICENSE.glib.txt"
     }
   },
   "plugins": {

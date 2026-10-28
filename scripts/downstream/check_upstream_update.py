@@ -75,7 +75,7 @@ def inspect(repo, downstream, upstream, manifest=None):
 
 def fingerprint(report):
     # Timestamps do not create repeated popups for the same issue.
-    fields = {k: report.get(k) for k in ['state', 'upstream', 'downstream', 'conflicts', 'working_tree_changed', 'error']}
+    fields = {k: report.get(k) for k in ['state', 'upstream', 'downstream', 'conflicts', 'working_tree_changed', 'detection_points', 'error']}
     return hashlib.sha256(json.dumps(fields, sort_keys=True).encode()).hexdigest()
 
 
@@ -119,14 +119,32 @@ def check(config_path, fetch=True, notify=True):
         report = inspect(repo, config['downstream_ref'], remote + '/' + config['upstream_branch'], manifest)
     except (OSError, ValueError, KeyError, RuntimeError, subprocess.TimeoutExpired) as error:
         report = {'state': 'error', 'error': str(error)[:1000], 'conflicts': []}
+    if (old.get('state') == 'validation_failed' and old.get('upstream') == report.get('upstream')
+            and old.get('downstream') == report.get('downstream') and report.get('state') == 'up_to_date'):
+        report.update({k: old[k] for k in ('state', 'detection_points', 'validation_receipt') if k in old})
+    report['schema_version'] = 2
+    report['upstream_sha'] = report.get('upstream')
+    report['downstream_sha'] = report.get('downstream')
+    report['detection_points'] = report.get('detection_points') or [{'check': 'git_merge', 'file': name, 'result': 'failed'}
+                                  for name in report.get('conflicts', [])]
+    report['repair_suggestions'] = ([
+        'Resolve in an isolated worktree; reuse upstream ownership primitives and preserve downstream environments.',
+        'Run Bun, Rust browser/regions, native ownership/lifecycle, migration and rollback fixtures before staging.'
+    ] if report.get('state') in ('conflict', 'error', 'local_changes', 'validation_failed') else [])
+    report['last_handled_event_id'] = old.get('last_handled_event_id')
     report.update(checked_at=dt.datetime.now().astimezone().isoformat(), repo=str(repo),
                   changes_applied=False, application_replaced=False, tests_run=False)
     report['title'], report['summary'] = notification(report)
     report['fingerprint'] = fingerprint(report)
-    report['notification'] = 'not_needed'
+    report['event_id'] = 'ccbaga-' + report['fingerprint'][:24]
+    report['last_handled_event_id'] = old.get('last_handled_event_id')
+    report['requires_attention'] = report['state'] in ('conflict', 'error', 'local_changes', 'validation_failed')
+    report['pending_event'] = report['requires_attention'] and report['event_id'] != report['last_handled_event_id']
+    report['status_path'] = str(state_file)
+    report['notification'] = 'not_needed' 
     report['notified_fingerprint'] = old.get('notified_fingerprint')
     atomic_json(state_file, report)
-    should_notify = report['state'] in ('conflict', 'error', 'local_changes') and report['fingerprint'] != old.get('notified_fingerprint')
+    should_notify = report['state'] in ('conflict', 'error', 'local_changes', 'validation_failed') and report['fingerprint'] != old.get('notified_fingerprint')
     if should_notify and notify:
         try:
             detail = report['summary']
@@ -165,12 +183,28 @@ def show_notice(state_dir, title, detail, report_path):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--config', type=Path, required=True)
+    parser.add_argument('--ack-event', help='Acknowledge exactly the event already handled by the existing daily task')
     parser.add_argument('--no-fetch', action='store_true')
     parser.add_argument('--no-notify', action='store_true')
     args = parser.parse_args()
+    if args.ack_event:
+        config_path = args.config.resolve()
+        config = json.loads(config_path.read_text())
+        state_dir = (config_path.parent / config['state_dir']).resolve()
+        with (state_dir / 'update.lock').open('a') as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            state_file = state_dir / 'status.json'
+            report = json.loads(state_file.read_text())
+            if report['event_id'] != args.ack_event:
+                raise RuntimeError('Event changed; refusing to acknowledge an unseen conflict')
+            report['last_handled_event_id'] = args.ack_event
+            report['pending_event'] = False
+            atomic_json(state_file, report)
+        print(json.dumps(report, ensure_ascii=False))
+        return 0
     report = check(args.config, not args.no_fetch, not args.no_notify)
     print(json.dumps(report, ensure_ascii=False))
-    return 1 if report['state'] in ('conflict', 'error', 'local_changes') else 0
+    return 1 if report['state'] in ('conflict', 'error', 'local_changes', 'validation_failed') else 0
 
 
 if __name__ == '__main__':

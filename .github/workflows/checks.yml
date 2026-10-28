@@ -1,5 +1,5 @@
 # [INPUT]: PR 合并提交或 main 源码、三平台原生工具与初始引擎准备的离线文件树。
-# [OUTPUT]: 前端/原生/Skill、发布装配与平台回归结果；PR 只恢复缓存，仅成功的 main 检查保存依赖缓存，不交付安装包。
+# [OUTPUT]: 前端/原生/Skill、依赖安全审计、GLib安全回补/浏览器资料进程归属/系统locale别名与发布装配回归结果；PR 只恢复缓存，仅成功的 main 检查保存依赖缓存，不交付安装包。
 # [POS]: 无凭据 PR/main 检查；不签名、不发布、不下载引擎，独立于 release.yml。
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 name: Checks
@@ -47,7 +47,7 @@ jobs:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version: 1.3.5
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.13'
       - name: Browser preparation regression
@@ -70,7 +70,7 @@ jobs:
           rustup toolchain install 1.98.1 --profile minimal
           rustup default 1.98.1
           bun install --frozen-lockfile
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         with:
           workspaces: src-tauri -> target
           # 系统镜像版本也属于 ABI 边界，禁止跨 Ubuntu 基线恢复编译缓存。
@@ -85,6 +85,11 @@ jobs:
         run: python scripts/browser_ui.py dist
       - name: Skill npm installation
         run: bun scripts/test-skill-install.ts
+      - name: GLib security backport provenance
+        run: python scripts/test-glib-backport.py
+      - name: Linux GLib optimized regression
+        if: runner.os == 'Linux'
+        run: python scripts/test-glib-backport.py --native
       - name: Network Skill offline tests
         run: python skills/ccbaga-network/scripts/test_network.py
       - name: Release assembly offline tests
@@ -115,6 +120,44 @@ jobs:
           clang -fobjc-arc -framework AppKit -framework CoreServices -framework CoreLocation -framework SystemConfiguration src-tauri/native/BrowserProfileTests.m -o "$RUNNER_TEMP/ccbaga-browser-profile-test"
           CCBAGA_TEST_TMP="$RUNNER_TEMP" "$RUNNER_TEMP/ccbaga-browser-profile-test" "--user-data-dir=/nonexistent/ccbaga profile 资料"
           rm -f "$RUNNER_TEMP/ccbaga-browser-profile-test"
+          clang -fobjc-arc -framework AppKit -framework ApplicationServices -framework CoreLocation src-tauri/native/SystemTests.m -o "$RUNNER_TEMP/ccbaga-system-test"
+          "$RUNNER_TEMP/ccbaga-system-test"
+          rm -f "$RUNNER_TEMP/ccbaga-system-test"
       - name: Windows CLI and region regression
         if: runner.os == 'Windows'
         run: python scripts/test-windows.py
+  dependency-audit:
+    name: Dependency security audit
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: 1.3.5
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.13'
+      - name: Prepare locked Rust toolchain
+        run: |
+          rustup toolchain install 1.98.1 --profile minimal
+          rustup default 1.98.1
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: src-tauri -> target
+          # 只缓存注册表与安装工具，原生目标仍由三平台检查各自管理。
+          cache-targets: false
+          shared-key: dependency-audit-ubuntu22
+          save-if: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
+      - name: Audit locked frontend dependencies
+        run: |
+          bun install --frozen-lockfile
+          bun audit
+      - name: Verify GLib security backport provenance
+        run: python scripts/test-glib-backport.py
+      - name: Audit locked Rust dependencies
+        run: |
+          cargo install --locked --version 0.22.2 cargo-audit
+          cargo audit --file src-tauri/Cargo.lock

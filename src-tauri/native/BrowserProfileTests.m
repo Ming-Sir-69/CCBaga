@@ -1,5 +1,5 @@
 // [INPUT]: 虚构 argv、合成进程信息、临时自建资料目录夹具、本测试进程自身 argv 与已回收子进程编号。
-// [OUTPUT]: 唯一绝对参数解析、按设备/inode 的同目录别名与不同目录判定、歧义/元数据/进程信息读取失败均为未知及真实 sysctl argv 读取回归。
+// [OUTPUT]: 唯一绝对参数、目录元数据与启动时间归属核验；锁类型异常及参数/元数据/进程读取失败保持未知，不退出其他资料的进程。
 // [POS]: 独立原生测试；只在临时目录创建夹具，不读真实浏览器资料，不启动或结束浏览器，不枚举其他进程，不输出 argv。
 // [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 #import "Browser.m"
@@ -31,7 +31,7 @@ int main(int argc, char **argv) {
         CHECK([files createSymbolicLinkAtPath:link withDestinationPath:profile error:NULL]);
         CHECK([@"fixture" writeToFile:[root stringByAppendingPathComponent:@"file"] atomically:NO encoding:NSUTF8StringEncoding error:NULL]);
 
-        // One explicit absolute switch before "--"; everything else is ambiguous (nil → unknown).
+        // ----- "--" 前仅一个绝对资料参数；其余歧义保持未知 -----
         CHECK([profileArgument(@[@"Chromium", @"--user-data-dir=/a", @"about:blank"]) isEqualToString:@"/a"]);
         CHECK([profileArgument(@[@"Chromium Helper", @"--type=renderer", @"--user-data-dir", @"/a"]) isEqualToString:@"/a"]);
         CHECK(profileArgument(@[@"Chromium", @"--user-data-dir=/a", @"--user-data-dir=/a"]) == nil);
@@ -45,28 +45,28 @@ int main(int argc, char **argv) {
         CHECK(profileArgument(@[@"--user-data-dir=/a"]) == nil);
         CHECK(profileArgument(@[]) == nil);
 
-        // Same directory through aliases resolves to one dev/inode.
+        // ----- 同一目录的别名由设备/inode 识别 -----
         CHECK(owner(profile, profile) == ProfileOwnershipOwned);
         CHECK(owner([profile stringByAppendingString:@"/"], profile) == ProfileOwnershipOwned);
         CHECK(owner([profile stringByAppendingString:@"/./Default/.."], profile) == ProfileOwnershipOwned);
         CHECK(owner(link, profile) == ProfileOwnershipOwned);
         CHECK(owner(profile, [link stringByAppendingString:@"/"]) == ProfileOwnershipOwned);
-        // Case alias only where the fixture volume itself is case-insensitive.
+        // 大小写别名仅在实际卷不区分大小写时验证。
         struct stat lower = {0}, upper = {0};
         NSString *upperRoot = [[root stringByDeletingLastPathComponent] stringByAppendingPathComponent:root.lastPathComponent.uppercaseString];
         if (stat(root.fileSystemRepresentation, &lower) == 0 && stat(upperRoot.fileSystemRepresentation, &upper) == 0 && lower.st_ino == upper.st_ino)
             CHECK(owner([upperRoot stringByAppendingPathComponent:@"独立 环境"], profile) == ProfileOwnershipOwned);
-        // Two existing different directories, including a similar prefix, are clearly not this profile.
+        // 相似前缀的独立目录不属于当前资料。
         CHECK(owner(other, profile) == ProfileOwnershipNone);
         CHECK(owner(root, profile) == ProfileOwnershipNone);
-        // Unreadable or non-directory metadata, and ambiguous arguments, are unknown.
+        // 元数据缺失、非目录和参数歧义均保持未知。
         CHECK(owner([root stringByAppendingPathComponent:@"missing"], profile) == ProfileOwnershipUnknown);
         CHECK(owner(profile, [root stringByAppendingPathComponent:@"missing"]) == ProfileOwnershipUnknown);
         CHECK(owner([root stringByAppendingPathComponent:@"file"], profile) == ProfileOwnershipUnknown);
         CHECK(owner(@"relative/独立 环境", profile) == ProfileOwnershipUnknown);
         CHECK(profileDirectoryOwnership(nil, profile) == ProfileOwnershipUnknown);
 
-        // Synthetic process records: a failed or changed second read is unknown, never "not running".
+        // ----- 合成进程样本：二次读取失败或身份改变不能视为未运行 -----
         struct proc_bsdinfo before = {0}, same = {0}, reused = {0}, user = {0};
         before.pbi_uid = 501; before.pbi_start_tvsec = 100; before.pbi_start_tvusec = 7;
         same = before;
@@ -85,8 +85,17 @@ int main(int argc, char **argv) {
         CHECK(missingProcess(ESRCH) == ProfileOwnershipNone);
         CHECK(missingProcess(EPERM) == ProfileOwnershipUnknown);
         CHECK(missingProcess(0) == ProfileOwnershipUnknown);
+        for (NSString *lockValue in @[@"host-not-a-pid", @"host-", @"host-0", @"host-1", @"host-2147483648", @"host-999999999999999999999999", @"host-１２３"])
+            CHECK(profileLockPID(lockValue) == -1);
+        CHECK(profileLockPID(@"hyphenated-host-123") == 123);
+        CHECK(profileApplicationIdentity(nil, @"Chromium") == ProfileOwnershipUnknown);
+        CHECK(profileApplicationIdentity(@"ai.local.requirement-french.browser", nil) == ProfileOwnershipUnknown);
+        CHECK(profileApplicationIdentity(@"", @"Chromium") == ProfileOwnershipUnknown);
+        CHECK(profileApplicationIdentity(@"ai.local.requirement-french.browser", @"Chromium") == ProfileOwnershipOwned);
+        CHECK(profileApplicationIdentity(@"org.fixture.other", @"Chromium") == ProfileOwnershipNone);
+        CHECK(profileApplicationIdentity(@"ai.local.requirement-french.browser", @"other") == ProfileOwnershipNone);
 
-        // Real reads limited to this test process and its own reaped child; argv is compared in memory, never printed.
+        // ----- 真实进程读取仅限本测试及其已回收子进程；参数仅在内存比较 -----
         CHECK(argc == 2 && strncmp(argv[1], "--user-data-dir=", 16) == 0);
         NSArray<NSString *> *actual = profileArguments(getpid());
         CHECK(actual.count == (NSUInteger)argc);
@@ -99,17 +108,23 @@ int main(int argc, char **argv) {
         errno = 0;
         CHECK(proc_pidinfo(child, PROC_PIDTBSDINFO, 0, &gone, sizeof(gone)) != sizeof(gone) && missingProcess(errno) == ProfileOwnershipNone);
 
-        // Locks naming a reaped PID or this non-browser process are not ownership; quit acts on neither.
+        // 已回收 PID 明确未运行；测试进程缺应用元数据时保持未知，不授权退出。
         NSString *lock = [profile stringByAppendingPathComponent:@"SingletonLock"];
         CHECK([files createSymbolicLinkAtPath:lock withDestinationPath:[NSString stringWithFormat:@"host-%d", child] error:NULL]);
         CHECK([decodeResponse(rf_browser_running(profile.fileSystemRepresentation))[@"running"] isEqual:@NO]);
         CHECK([files removeItemAtPath:lock error:NULL]);
         NSString *selfLock = [NSString stringWithFormat:@"host-%d", getpid()];
         CHECK([files createSymbolicLinkAtPath:lock withDestinationPath:selfLock error:NULL]);
-        CHECK([decodeResponse(rf_browser_running(profile.fileSystemRepresentation))[@"running"] isEqual:@NO]);
-        CHECK([decodeResponse(rf_browser_quit(profile.fileSystemRepresentation))[@"ok"] isEqual:@YES]);
+        CHECK(decodeResponse(rf_browser_running(profile.fileSystemRepresentation))[@"error"] != nil);
+        CHECK(decodeResponse(rf_browser_quit(profile.fileSystemRepresentation))[@"error"] != nil);
         CHECK([files removeItemAtPath:lock error:NULL]);
         CHECK([files createSymbolicLinkAtPath:lock withDestinationPath:@"host-not-a-pid" error:NULL]);
+        CHECK(decodeResponse(rf_browser_running(profile.fileSystemRepresentation))[@"error"] != nil);
+        CHECK([files removeItemAtPath:lock error:NULL]);
+        CHECK([@"unexpected regular lock" writeToFile:lock atomically:NO encoding:NSUTF8StringEncoding error:NULL]);
+        CHECK(decodeResponse(rf_browser_running(profile.fileSystemRepresentation))[@"error"] != nil);
+        CHECK(decodeResponse(rf_browser_quit(profile.fileSystemRepresentation))[@"error"] != nil);
+        CHECK([files removeItemAtPath:lock error:NULL]);
         CHECK([decodeResponse(rf_browser_running(profile.fileSystemRepresentation))[@"running"] isEqual:@NO]);
         CHECK([files removeItemAtPath:root error:NULL]);
         free(dir);

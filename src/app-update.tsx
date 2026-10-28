@@ -31,6 +31,10 @@ export function AppUpdate({blocked,onBusy}:{blocked:boolean;onBusy:(busy:boolean
     if(running.current||installed.current)return;
     running.current=true;setPhase('checking');setError('');
     try{
+      if((await getVersion()).includes('-multi.')){
+        if(live.current){setPhase('idle');if(show)setError(t('多环境版本请通过项目更新入口构建，完成兼容检查后再安装。'));}
+        return;
+      }
       if(await invoke<string>('runtime_platform') === 'linux'){
         if(live.current){setPhase('idle');if(show)setError(t('Linux 版本请通过安装包或源码更新，当前更新源仅提供 macOS。'));}
         return;

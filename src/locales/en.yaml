@@ -1485,3 +1485,5 @@
 "身份联动": "Identity-linked"
 "系统操作": "System actions"
 "先保存设置，再打开窗口。": "Save settings before opening the window."
+
+"多环境版本请通过项目更新入口构建，完成兼容检查后再安装。": "Build the multi-environment edition through its project update entry, then install after compatibility checks."
