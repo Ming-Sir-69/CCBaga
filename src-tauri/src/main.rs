@@ -73,9 +73,27 @@ pub(crate) fn startup_trace(stage: &str) {
     }
     let _ = stage;
 }
+fn integration_startup_receipt(app: &tauri::AppHandle) {
+    let args: Vec<String> = std::env::args().collect();
+    let Some(index) = args.iter().position(|arg| arg == "--integration-smoke") else { return; };
+    let Some(path) = args.get(index + 1).map(std::path::PathBuf::from) else { return; };
+    let inventory = browser::environments::integration_inventory(app);
+    let value = serde_json::json!({"pid":std::process::id(),"executable":std::env::current_exe().ok(),
+        "identifier":app.config().identifier,"version":app.package_info().version.to_string(),
+        "official_data_root":app.path().app_data_dir().ok(),"page_loaded":true,
+        "environment_catalog":inventory.as_ref().ok(),"error":inventory.err(),
+        "browser_autostart":false,"gui_acceptance":"waived_by_user_20261028",
+        "profile_copy_or_move":false});
+    let _ = std::fs::write(path, serde_json::to_vec_pretty(&value).unwrap());
+}
 fn main() {
     startup_trace("host entry");
     tauri::Builder::default()
+        .on_page_load(|webview, payload| {
+            if cfg!(feature = "mingle-integration") && payload.event() == tauri::webview::PageLoadEvent::Finished {
+                integration_startup_receipt(webview.app_handle());
+            }
+        })
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_dialog::init())

@@ -93,7 +93,28 @@ fn name(value: &str) -> Result<String, String> {
 }
 
 fn environments_root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
-    Ok(root(app)?.join("environments"))
+    let home = app.path().home_dir().map_err(|_| "应用目录不可用。")?;
+    retained_environments_root(&home, &root(app)?.join("environments"), cfg!(feature = "mingle-integration"))
+}
+
+fn retained_environments_root(home: &Path, default: &Path, integrated: bool) -> Result<PathBuf, String> {
+    let legacy = home.join("Library/Application Support/ai.local.mingle.ccbaga.environments/browser/environments");
+    if integrated && legacy.exists() {
+        private::parents(&legacy)?;
+        private::safe(&legacy)?;
+        if !legacy.is_dir() { return Err("应用目录不可用。".into()); }
+        return Ok(legacy);
+    }
+    Ok(default.to_path_buf())
+}
+
+pub(crate) fn integration_inventory(app: &tauri::AppHandle) -> Result<serde_json::Value, String> {
+    let path = environments_root(app)?;
+    let (items, issues) = inventory(&path)?;
+    Ok(serde_json::json!({"root":path,"environments":items.iter().map(|item| serde_json::json!({
+        "id":item.id,"name":item.name,"format":item.format,"browser":item.browser,
+        "profile":path.join(&item.id).join("profile")
+    })).collect::<Vec<_>>(),"issue_count":issues.len(),"profile_copy_or_move":false}))
 }
 
 fn directory(root: &Path, id: &str) -> Result<PathBuf, String> {

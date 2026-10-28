@@ -286,6 +286,9 @@ fn start_companion(app: &tauri::AppHandle) -> Result<(), String> {
     // 先刷新参数：浏览器已由 CCBaga-B 入口先行启动时，下一次启动也能沿用指纹参数。
     write_launch_args(&root, &config, &machine, &profile, &version(&browser))?;
     let _page = open_session(app, &config, &machine, version(&browser))?;
+    // Personal integrated builds prepare the existing official B entry without opening any profile.
+    // This retains the previous multi edition's explicit-open policy and never relocates identities.
+    if cfg!(feature = "mingle-integration") { return Ok(()); }
     if profile::running(&profile)? {
         // Recreate the manual measurement entry, but never inject a new tab merely
         // because the manager restarted. Old observations are not treated as fresh.

@@ -17,7 +17,7 @@ def verify(repo, output, bun):
     receipt = {'schema_version': 1, 'source_sha': require(run_git(repo, 'rev-parse', 'HEAD')),
                'upstream_sha': require(run_git(repo, 'rev-parse', 'origin/main')),
                'checks': [], 'passed': False, 'synthetic_home': True,
-               'native_gui_accepted': False, 'application_replaced': False}
+               'native_gui_accepted': False, 'gui_requirement':'waived_by_user_20261028', 'application_replaced': False}
     with tempfile.TemporaryDirectory(dir=tempbase) as temporary:
         tmp = Path(temporary)
         (tmp/'home').mkdir(); (tmp/'tmp').mkdir()
@@ -28,8 +28,8 @@ def verify(repo, output, bun):
         steps = [('bun-install', [bun, 'install', '--frozen-lockfile']),
                  ('bun-tests', [bun, 'test']), ('bun-build', [bun, 'run', 'build']),
                  ('maintenance-fixtures', ['ai-python', '-m', 'unittest', 'discover', '-s', 'scripts/downstream', '-p', 'test_*.py']),
-                 ('rust-browser', ['cargo', 'test', '--locked', '--manifest-path', 'src-tauri/Cargo.toml', 'browser::', '--', '--test-threads=1']),
-                 ('rust-regions', ['cargo', 'test', '--locked', '--manifest-path', 'src-tauri/Cargo.toml', 'regions::', '--', '--test-threads=1'])]
+                 ('rust-browser', ['cargo', 'test', '--locked', '--manifest-path', 'src-tauri/Cargo.toml', '--features', 'mingle-integration', 'browser::', '--', '--test-threads=1']),
+                 ('rust-regions', ['cargo', 'test', '--locked', '--manifest-path', 'src-tauri/Cargo.toml', '--features', 'mingle-integration', 'regions::', '--', '--test-threads=1'])]
         for name in ['BrowserProfileTests', 'BrowserTests', 'BrowserDiscoveryTests', 'SystemTests']:
             binary = tmp/name
             steps.append((name+'-compile', ['clang', '-fobjc-arc', '-Wall', '-Wextra', str(repo/'src-tauri/native'/(name+'.m')),

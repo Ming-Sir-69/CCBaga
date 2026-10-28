@@ -1,37 +1,15 @@
-# Downstream browser-environment integration
+# One self-maintained CCBaga A+B product
 
-This branch is an unofficial development variant of [liseami/CCBaga](https://github.com/liseami/CCBaga). Official releases remain the upstream owner's responsibility. It is not a new browser engine or a guarantee of service-side account/device independence.
+This personal branch extends liseami/CCBaga with named isolated browser environments, the accepted target GUI, conservative per-profile lifecycle, optional Brave compatibility and browser discovery. Official 13 region presets and the merged #57/#68 ownership primitives remain upstream-owned. No Chicago extension or LA substitution is added.
 
-The downstream layer adds named browser environments, explicit per-profile lifecycle checks, a unified selected-environment workspace, and read-only macOS browser discovery. Existing identity-linked behavior remains available as the built-in environment. Standalone environments do not switch Claude Code/Desktop identity.
+As authorized on 2026-10-28, the former multi application is consolidated into `/Applications/CCBaga-A.app` plus its matching official-release `CCBaga-B.app`, launched through the original CCBaga dispatcher. A is an explicit self-maintained ad-hoc build, not maintainer-signed/notarized. B is the unmodified, publisher-verified engine from the exact same baseline release. A's signed pair manifest binds B's whole bundle fingerprint and release/source SHA, preventing mixed payloads.
 
-The current Brave adapter is a compatibility path for an already-owned local profile. General browser import, cross-engine login preservation, per-environment report sessions, and multi-platform acceptance are not claimed. The UI does not display another profile's measurements as the selected environment's report.
+The sole active worktree is `CCBaga/active-integration` under the original CCBaga workspace. The previous candidate tree was moved here, not duplicated. Dirty historical worktrees are untouched. The unique fork branch remains `downstream/mingle-browser-environments` with real upstream merge ancestry.
 
-## Maintenance
+`CCBaga/auto_update.py` is the stable loader for `scripts/downstream/one_shot_updater.py`. It retains the existing launchd one-shot, run lock, journal, release download verification and pair transaction. No release means immediate silent exit: no overlay inspection, Git fetch, build, notification or status rewrite. An actual new tag/digest or explicit user update invokes `integrated_update.py`, which freezes the release SHA, preflights overlay conflicts, verifies in a separate candidate worktree when needed, runs Bun/Rust/Native and real-engine synthetic profile tests, builds and verifies A+B, then installs through the existing transaction. Plain official A can never overwrite an integrated installation. Repeated blocked release events are cached; manual retry is explicit. Events/notifications are deduplicated by release/source/digest/detection points, without any periodic conflict monitoring.
 
-- Keep upstream fixes on focused branches that can be reviewed independently of this layer.
-- Preserve the upstream default behavior and existing data locations. Share profile/process primitives rather than maintaining duplicate implementations.
-- Fetch and preflight upstream only when explicitly preparing an update. A clean Git merge is not a build or functional acceptance result.
-- Conflicts and failed checks stop the update; the installed application and browser data stay unchanged. No background watcher or scheduled job is required.
-- Keep one known-good application rollback and remove temporary check artifacts after use.
+Original identity/native data remains under the official application identifier. Existing standalone environments are addressed in place at the legacy multi data root, with no profile copies, reassignment or directory moves. A only prepares official B connection hints at startup; it does not auto-open a browser. New users without the legacy catalog use the canonical official environment root. Symlinks fail closed.
 
-Local macOS validation covers synthetic profiles, process ownership, native discovery and UI target routing. Linux/Windows validation for the downstream feature set remains outstanding; the focused upstream ownership fix is macOS-only.
+The user explicitly waived further GUI acceptance. Production gates are automatic regression, signed bundle verification, real startup/page-load/config inventory smoke and reversible installation, with no active browser termination. Previous applications are retained by the original journal/rollback mechanism. `auto_update.py --rollback <retained receipt directory>` restores both prior applications and their exact version state without moving browser data. The redundant multi app is retired only after successful production startup; its original package and all data remain recoverable.
 
-## Explicit update preparation
-
-The developer invokes `scripts/downstream/check_upstream_update.py` with a local JSON configuration only while fetching/preparing an update. It uses `git merge-tree` against the saved downstream ref; it does not merge into a checkout, install an application, or register a background task. A conflict stops the operation. A clean text merge still requires build and functional validation.
-
-The configuration supplies the repository, expected upstream remote URL/branch, saved downstream ref, reviewed-source manifest and a temporary result directory. The latest result overwrites one `status.json`. On macOS an error alert is built only on demand and deleted after dismissal; successful checks do not display an alert. A local build environment with Python, Git and clang is required. This is developer-side update preparation, not a claim that the application's binary updater can merge source code.
-
-`save_downstream_snapshot.py --reviewed` can record tested changes through a temporary index without changing the editing branch or its index. New files require explicit inclusion. The saved branch must not be checked out. Use its `--integrate-upstream` flag only after the new upstream source has actually been integrated and tested, so the saved merge ancestry reflects reality.
-
-## Durable convergence (2026-10-28)
-
-`downstream-overlay.json` records the exact official baseline and overlay contract. This branch merges upstream main with two-parent Git ancestry; `origin/main` remains pure upstream. PR #57 ownership primitives and #68 lock/unknown-metadata hardening are shared, while the downstream Brave identity adapter and per-environment lifecycle remain separate. Official 13 region presets are unchanged. Chicago is not silently mapped to Los Angeles and no additional preset is currently needed.
-
-The project build entry must invoke `prepare_update.py` before packaging. It fetches the expected upstream, checks Git conflicts and source drift, makes a separate merge worktree for a clean new upstream, then runs Bun, targeted Rust/browser/region and native fixtures with a synthetic HOME. Every check has a log and a validation receipt. Text merges alone cannot authorize packaging. The multi edition also refuses official in-app binary updates.
-
-State belongs in a persistent project `records/upstream-update` directory, not `_trash`. Schema v2 exposes `upstream_sha`, `downstream_sha`, `detection_points`, `repair_suggestions`, `event_id`, `last_handled_event_id` and `pending_event`. The existing daily maintenance task may read that JSON; after actually reporting/handling an event it invokes `check_upstream_update.py --config ... --ack-event EVENT_ID`. Repeated checks preserve acknowledgement. No scheduler or notification service is installed by this branch. Build/test failures stop before replacement.
-
-`install_staged_app.py` accepts only the personal app identity and an exact-binary native acceptance receipt. It checks runtime occupancy, saves the old app by rename, journals the transaction and restores the old app on failure. Synthetic fixtures cover rollback and interrupted-rename recovery. This does not grant a real candidate GUI acceptance result. No profile migration or official A+B updater transaction is involved.
-
-After verifying a clean candidate, `save_downstream_snapshot.py --reviewed --from-commit HEAD` can promote its actual commit to the saved downstream ref by fast-forward. It preserves two-parent upstream merge ancestry, refuses dirty candidates and non-fast-forward promotion, and leaves the editing HEAD/index untouched. The earlier explicit-new-file snapshot mode remains supported.
+The earlier standalone checker/snapshot modules remain reusable implementation and historical fixtures; old multi-app installation and daily-report instructions are retired. No daily/cloud overlay task is required. Windows/Linux downstream live acceptance remains unverified.

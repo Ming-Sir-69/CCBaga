@@ -11,6 +11,7 @@ license = "MIT"
 [features]
 default = []
 custom-protocol = ["tauri/custom-protocol"]
+mingle-integration = []
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }

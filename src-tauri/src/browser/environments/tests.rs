@@ -378,3 +378,27 @@ fn saved_multi15_manifest_remains_readable_and_future_formats_fail_closed() {
     assert!(load(&root.0, &item.id).is_ok());
     assert_eq!(fs::read_to_string(data.join("Default/Cookies")).unwrap(), "synthetic login");
 }
+
+#[test]
+fn integrated_catalog_preserves_legacy_profiles_and_official_native_root() {
+    let f = Fixture::new();
+    let official = f.0.join("Library/Application Support/ai.local.requirement-french/browser/environments");
+    assert_eq!(retained_environments_root(&f.0, &official, true).unwrap(), official);
+    let legacy = f.0.join("Library/Application Support/ai.local.mingle.ccbaga.environments/browser/environments");
+    fs::create_dir_all(&legacy).unwrap();
+    fs::write(legacy.join("synthetic-data"), "unchanged").unwrap();
+    assert_eq!(retained_environments_root(&f.0, &official, true).unwrap(), legacy);
+    assert_eq!(retained_environments_root(&f.0, &official, false).unwrap(), official);
+    assert_eq!(fs::read_to_string(legacy.join("synthetic-data")).unwrap(), "unchanged");
+    assert!(!official.exists());
+}
+#[cfg(unix)]
+#[test]
+fn integrated_catalog_refuses_redirects() {
+    let f = Fixture::new();
+    let legacy = f.0.join("Library/Application Support/ai.local.mingle.ccbaga.environments/browser/environments");
+    fs::create_dir_all(legacy.parent().unwrap()).unwrap();
+    let other = f.0.join("other");fs::create_dir(&other).unwrap();
+    std::os::unix::fs::symlink(&other, &legacy).unwrap();
+    assert!(retained_environments_root(&f.0, &f.0.join("official"), true).is_err());
+}

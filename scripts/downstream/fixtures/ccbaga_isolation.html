@@ -1,0 +1,44 @@
+<!doctype html><meta charset="utf-8"><title>独立环境 · 本地隔离验收</title>
+<h1>独立环境 · 本地隔离验收</h1><p>只测试人工生成的数据，无账号或外部网站。</p><pre id="output"></pre>
+<script>
+(async () => {
+  const p = new URLSearchParams(location.search), label = p.get('label'), value = p.get('write');
+  const db = await new Promise((ok, bad) => {
+    const r = indexedDB.open('mingle-isolation-acceptance', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('values');
+    r.onsuccess = () => ok(r.result); r.onerror = () => bad(r.error);
+  });
+  const readDB = () => new Promise((ok, bad) => {
+    const r = db.transaction('values').objectStore('values').get('value');
+    r.onsuccess = () => ok(r.result ?? null); r.onerror = () => bad(r.error);
+  });
+  const cache = await caches.open('mingle-isolation-acceptance');
+  async function snapshot() {
+    const response = await cache.match('/synthetic-cache');
+    return {cookie: document.cookie, localStorage: localStorage.getItem('value'),
+      indexedDB: await readDB(), cacheStorage: response ? await response.text() : null};
+  }
+  const before = await snapshot();
+  if (value) {
+    document.cookie = 'isolation=' + value + '; Path=/; SameSite=Strict; Max-Age=3600';
+    localStorage.setItem('value', value);
+    await new Promise((ok, bad) => {
+      const t = db.transaction('values', 'readwrite'); t.objectStore('values').put(value, 'value');
+      t.oncomplete = ok; t.onerror = () => bad(t.error);
+    });
+    await cache.put('/synthetic-cache', new Response(value));
+  }
+  const canvas = document.createElement('canvas'), ctx = canvas.getContext('2d');
+  ctx.font = '18px Arial'; ctx.fillText('Mingle isolation 123', 10, 30);
+  const pixels = canvas.toDataURL();
+  const hash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pixels))))
+    .map(x => x.toString(16).padStart(2, '0')).join('');
+  async function report() {
+    const result = {label, before, current: await snapshot(), language: navigator.language,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, canvas_sha256: hash};
+    document.getElementById('output').textContent = JSON.stringify(result, null, 2);
+    await fetch('/result', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(result)});
+  }
+  await report(); setInterval(report, 400);
+})().catch(error => { document.getElementById('output').textContent = String(error); });
+</script>

@@ -117,7 +117,7 @@ def check(config_path, fetch=True, notify=True):
         if fetch:
             require(run_git(repo, 'fetch', '--no-tags', remote, config['upstream_branch'], timeout=60))
         manifest = json.loads((config_path.parent / config['manifest']).read_text())
-        report = inspect(repo, config['downstream_ref'], remote + '/' + config['upstream_branch'], manifest)
+        report = inspect(repo, config['downstream_ref'], config.get('upstream_ref', remote + '/' + config['upstream_branch']), manifest)
     except (OSError, ValueError, KeyError, RuntimeError, subprocess.TimeoutExpired) as error:
         report = {'state': 'error', 'error': str(error)[:1000], 'conflicts': []}
     report['git_state'] = report.get('state')
