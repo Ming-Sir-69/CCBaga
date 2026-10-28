@@ -44,6 +44,11 @@ def prepare(config_path, bun):
             raise RuntimeError('Candidate has unreviewed source changes')
         output = state_dir/'validation'/require(run_git(candidate, 'rev-parse', 'HEAD'))
         receipt = verify(candidate, output, bun)
+        if (require(run_git(candidate, 'rev-parse', 'HEAD')) != receipt['source_sha']
+                or require(run_git(candidate, 'status', '--porcelain'))):
+            receipt['passed'] = False
+            receipt['checks'].append({'check':'candidate_changed_during_validation','exit_code':1})
+            atomic_json(output/'validation.json',receipt)
         report.update(state='validated_pending_stage' if receipt['passed'] else 'validation_failed',
                       tests_run=True, candidate_repo=str(candidate), candidate_sha=receipt['source_sha'],
                       validation_receipt=str(output/'validation.json'),

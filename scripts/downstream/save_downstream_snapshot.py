@@ -7,7 +7,7 @@ import os
 from pathlib import Path
 import subprocess
 import uuid
-from check_upstream_update import atomic_json, file_digest
+from check_upstream_update import atomic_json, file_digest, run_git, require
 
 
 def snapshot(config_path, message, include=(), integrate=False, source_commit=None):
@@ -39,7 +39,7 @@ def snapshot(config_path, message, include=(), integrate=False, source_commit=No
             if include or integrate:
                 raise ValueError('Commit promotion cannot include worktree edits or manufacture merge parents')
             oid = git('rev-parse', '--verify', source_commit + '^{commit}').stdout.strip()
-            if oid != git('rev-parse', 'HEAD').stdout.strip() or git('status', '--porcelain').stdout.strip():
+            if oid != git('rev-parse', 'HEAD').stdout.strip() or require(run_git(repo, 'status', '--porcelain')):
                 raise RuntimeError('Only the clean current candidate commit may be promoted')
             if old and git('merge-base', '--is-ancestor', old, oid, check=False).returncode:
                 raise RuntimeError('Refusing non-fast-forward downstream promotion')
