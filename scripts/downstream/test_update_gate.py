@@ -31,6 +31,18 @@ class GateTests(UpdateTests):
         self.assertTrue(b['pending_event']);self.assertTrue(b['tests_run'])
         self.assertEqual(b['detection_points'][0]['check'],'api_contract')
 
+    def test_commit_snapshot_preserves_real_ancestry_and_refuses_dirty_source(self):
+        from save_downstream_snapshot import snapshot
+        c=json.loads(self.config.read_text());c['downstream_ref']='refs/heads/downstream/saved';self.config.write_text(json.dumps(c))
+        self.git('update-ref',c['downstream_ref'],self.down)
+        self.git('merge','--no-ff','--no-edit',self.clean)
+        head=self.git('rev-parse','HEAD')
+        before=(self.git('rev-parse','HEAD'),(self.repo/'.git/index').read_bytes())
+        self.assertEqual(snapshot(self.config,'reviewed candidate',source_commit=head),head)
+        self.assertEqual(before,(self.git('rev-parse','HEAD'),(self.repo/'.git/index').read_bytes()))
+        (self.repo/'one.txt').write_text('unreviewed')
+        with self.assertRaises(RuntimeError):snapshot(self.config,'reject dirty',source_commit=head)
+
     def test_bad_new_upstream_stops_before_build(self):
         from prepare_update import prepare
         self.git('update-ref', 'refs/remotes/origin/main', self.conflict)

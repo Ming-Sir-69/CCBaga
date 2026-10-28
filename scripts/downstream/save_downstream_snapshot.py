@@ -10,7 +10,7 @@ import uuid
 from check_upstream_update import atomic_json, file_digest
 
 
-def snapshot(config_path, message, include=(), integrate=False):
+def snapshot(config_path, message, include=(), integrate=False, source_commit=None):
     config_path = config_path.resolve()
     config = json.loads(config_path.read_text())
     repo = (config_path.parent / config['repo']).resolve()
@@ -35,6 +35,21 @@ def snapshot(config_path, message, include=(), integrate=False):
         previous = git('rev-parse', '--verify', ref, check=False)
         old = previous.stdout.strip() if previous.returncode == 0 else None
         parent = old or git('rev-parse', config.get('base_ref', 'HEAD') + '^{commit}').stdout.strip()
+        if source_commit:
+            if include or integrate:
+                raise ValueError('Commit promotion cannot include worktree edits or manufacture merge parents')
+            oid = git('rev-parse', '--verify', source_commit + '^{commit}').stdout.strip()
+            if oid != git('rev-parse', 'HEAD').stdout.strip() or git('status', '--porcelain').stdout.strip():
+                raise RuntimeError('Only the clean current candidate commit may be promoted')
+            if old and git('merge-base', '--is-ancestor', old, oid, check=False).returncode:
+                raise RuntimeError('Refusing non-fast-forward downstream promotion')
+            names = git('ls-tree', '-r', '--name-only', oid).stdout.splitlines()
+            manifest = {name: file_digest(repo / name) for name in names}
+            git('update-ref', ref, oid, old or '0' * 40)
+            atomic_json(config_path.parent / config['manifest'], manifest)
+            atomic_json(state_dir / 'checkpoint.json', {'commit':oid, 'ref':ref,
+                        'mode':'fast_forward_reviewed_commit', 'previous':old, 'source_file_count':len(names)})
+            return oid
         try:
             git('read-tree', parent)
             git('add', '-u', '--', '.')
@@ -67,7 +82,8 @@ if __name__ == '__main__':
     parser.add_argument('--config', type=Path, required=True)
     parser.add_argument('--message', required=True)
     parser.add_argument('--include', action='append', default=[], help='Explicitly include a reviewed new source file')
+    parser.add_argument('--from-commit', help='Promote a clean reviewed candidate by fast-forward, preserving its real merge ancestry')
     parser.add_argument('--integrate-upstream', action='store_true', help='Only after upstream changes have been integrated and tested')
     parser.add_argument('--reviewed', action='store_true', required=True, help='Confirm source, privacy and tests were reviewed')
     args = parser.parse_args()
-    print(snapshot(args.config, args.message, args.include, args.integrate_upstream))
+    print(snapshot(args.config, args.message, args.include, args.integrate_upstream, args.from_commit))
