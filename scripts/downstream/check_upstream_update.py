@@ -82,8 +82,9 @@ def fingerprint(report):
 def notification(report):
     state = report['state']
     titles = {'conflict': 'CCBaga：上游更新存在合并冲突', 'error': 'CCBaga：上游检查失败',
-              'local_changes': 'CCBaga：本地修改尚未登记', 'merge_clean_pending_tests': 'CCBaga：上游有更新，等待验证'}
+              'validation_failed': 'CCBaga：兼容验证失败', 'local_changes': 'CCBaga：本地修改尚未登记', 'merge_clean_pending_tests': 'CCBaga：上游有更新，等待验证'}
     summary = {
+        'validation_failed': '验证未通过，请检查 detection_points 与日志。当前应用和资料未更改。',
         'conflict': '已保留当前可用版本。请让 Agent 查看报告并处理冲突。',
         'error': '检查未完成，不能据此判断兼容。当前应用和资料未更改。',
         'local_changes': '检查使用的是已保存的下游版本。请让 Agent 验证并登记新修改。',
@@ -119,32 +120,35 @@ def check(config_path, fetch=True, notify=True):
         report = inspect(repo, config['downstream_ref'], remote + '/' + config['upstream_branch'], manifest)
     except (OSError, ValueError, KeyError, RuntimeError, subprocess.TimeoutExpired) as error:
         report = {'state': 'error', 'error': str(error)[:1000], 'conflicts': []}
-    if (old.get('state') == 'validation_failed' and old.get('upstream') == report.get('upstream')
+    report['git_state'] = report.get('state')
+    gate_states = ('validation_failed', 'packaging_failed', 'engine_failed', 'staged_pending_native_acceptance', 'validated_pending_stage', 'installed')
+    if (old.get('state') in gate_states and old.get('upstream') == report.get('upstream')
             and old.get('downstream') == report.get('downstream') and report.get('state') == 'up_to_date'):
-        report.update({k: old[k] for k in ('state', 'detection_points', 'validation_receipt') if k in old})
+        report.update({k: old[k] for k in ('state', 'detection_points', 'validation_receipt', 'tests_run',
+                       'candidate_repo', 'candidate_sha', 'staged_receipt', 'install_blockers', 'repair_suggestions') if k in old})
     report['schema_version'] = 2
     report['upstream_sha'] = report.get('upstream')
     report['downstream_sha'] = report.get('downstream')
     report['detection_points'] = report.get('detection_points') or [{'check': 'git_merge', 'file': name, 'result': 'failed'}
                                   for name in report.get('conflicts', [])]
-    report['repair_suggestions'] = ([
+    report['repair_suggestions'] = report.get('repair_suggestions') or ([
         'Resolve in an isolated worktree; reuse upstream ownership primitives and preserve downstream environments.',
         'Run Bun, Rust browser/regions, native ownership/lifecycle, migration and rollback fixtures before staging.'
-    ] if report.get('state') in ('conflict', 'error', 'local_changes', 'validation_failed') else [])
+    ] if report.get('state') in ('conflict', 'error', 'local_changes', 'validation_failed', 'packaging_failed', 'engine_failed') else [])
     report['last_handled_event_id'] = old.get('last_handled_event_id')
     report.update(checked_at=dt.datetime.now().astimezone().isoformat(), repo=str(repo),
-                  changes_applied=False, application_replaced=False, tests_run=False)
+                  changes_applied=False, application_replaced=False, tests_run=report.get('tests_run', False))
     report['title'], report['summary'] = notification(report)
     report['fingerprint'] = fingerprint(report)
     report['event_id'] = 'ccbaga-' + report['fingerprint'][:24]
     report['last_handled_event_id'] = old.get('last_handled_event_id')
-    report['requires_attention'] = report['state'] in ('conflict', 'error', 'local_changes', 'validation_failed')
+    report['requires_attention'] = report['state'] in ('conflict', 'error', 'local_changes', 'validation_failed', 'packaging_failed', 'engine_failed')
     report['pending_event'] = report['requires_attention'] and report['event_id'] != report['last_handled_event_id']
     report['status_path'] = str(state_file)
     report['notification'] = 'not_needed'
     report['notified_fingerprint'] = old.get('notified_fingerprint')
     atomic_json(state_file, report)
-    should_notify = report['state'] in ('conflict', 'error', 'local_changes', 'validation_failed') and report['fingerprint'] != old.get('notified_fingerprint')
+    should_notify = report['state'] in ('conflict', 'error', 'local_changes', 'validation_failed', 'packaging_failed', 'engine_failed') and report['fingerprint'] != old.get('notified_fingerprint')
     if should_notify and notify:
         try:
             detail = report['summary']
@@ -204,7 +208,7 @@ def main():
         return 0
     report = check(args.config, not args.no_fetch, not args.no_notify)
     print(json.dumps(report, ensure_ascii=False))
-    return 1 if report['state'] in ('conflict', 'error', 'local_changes', 'validation_failed') else 0
+    return 1 if report['state'] in ('conflict', 'error', 'local_changes', 'validation_failed', 'packaging_failed', 'engine_failed') else 0
 
 
 if __name__ == '__main__':

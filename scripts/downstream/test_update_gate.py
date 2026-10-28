@@ -21,6 +21,16 @@ class GateTests(UpdateTests):
         self.assertEqual(b['upstream_sha'], self.conflict)
         self.assertEqual(b['detection_points'][0]['file'], 'one.txt')
 
+    def test_daily_git_check_preserves_failed_semantic_gate(self):
+        a=check(self.config,fetch=False,notify=False)
+        a.update(state='validation_failed',tests_run=True,detection_points=[{'check':'api_contract','exit_code':1}],validation_receipt='fixture.json')
+        (self.root/'state/status.json').write_text(json.dumps(a))
+        b=check(self.config,fetch=False,notify=False)
+        self.assertEqual(b['git_state'],'up_to_date')
+        self.assertEqual(b['state'],'validation_failed')
+        self.assertTrue(b['pending_event']);self.assertTrue(b['tests_run'])
+        self.assertEqual(b['detection_points'][0]['check'],'api_contract')
+
     def test_bad_new_upstream_stops_before_build(self):
         from prepare_update import prepare
         self.git('update-ref', 'refs/remotes/origin/main', self.conflict)

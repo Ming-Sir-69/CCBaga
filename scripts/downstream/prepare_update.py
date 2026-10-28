@@ -5,7 +5,7 @@ import fcntl
 import hashlib
 import json
 from pathlib import Path
-from check_upstream_update import check, atomic_json, require, run_git
+from check_upstream_update import check, atomic_json, require, run_git, fingerprint
 from verify_candidate import verify
 
 
@@ -18,9 +18,10 @@ def prepare(config_path, bun):
     with (state_dir/'prepare.lock').open('a') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         report = check(config_path, fetch=True, notify=False)
-        if report['state'] not in ('up_to_date', 'merge_clean_pending_tests'):
+        git_state = report.get('git_state', report['state'])
+        if git_state not in ('up_to_date', 'merge_clean_pending_tests'):
             return report
-        if report['state'] == 'merge_clean_pending_tests':
+        if git_state == 'merge_clean_pending_tests':
             candidates = (config_path.parent/config.get('candidates_dir', 'candidates')).resolve()
             candidates.mkdir(parents=True, exist_ok=True)
             candidate = candidates/(report['upstream'][:12]+'-'+report['downstream'][:12])
@@ -49,7 +50,7 @@ def prepare(config_path, bun):
                       detection_points=[x for x in receipt['checks'] if x['exit_code']],
                       repair_suggestions=[] if receipt['passed'] else ['Inspect failed check logs; repair only in the isolated candidate, then retry.'],
                       requires_attention=not receipt['passed'])
-        report['fingerprint'] = hashlib.sha256(json.dumps({k:report.get(k) for k in ('state','upstream','downstream','detection_points')},sort_keys=True).encode()).hexdigest()
+        report['fingerprint'] = fingerprint(report)
         report['event_id'] = 'ccbaga-'+report['fingerprint'][:24]
         report['pending_event'] = report['requires_attention'] and report['event_id'] != report.get('last_handled_event_id')
         atomic_json(state_dir/'status.json', report)
