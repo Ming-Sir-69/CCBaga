@@ -1,6 +1,6 @@
 /**
  * [INPUT]: Tauri 单次调用的有序进度流和清理、CLI 安装、系统和浏览器页面的操作结果与共享 YAML 文案。
- * [OUTPUT]: 本次活动状态、真实阶段/数量与身份卡片下的事件驱动动画、默认收起的日志；未知总量无百分比，原始消息在呈现时翻译。
+ * [OUTPUT]: 本次活动状态、真实阶段/数量与事件驱动动画、去重终止错误的日志；未知总量无百分比，原始消息在呈现时翻译。
  * [POS]: 本地操作的观察层；调用通道隔离不同操作，不制造进度或改变清理范围。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -41,8 +41,11 @@ export function useCleanupActivity() {
                 return old;
             const entries = [...old.entries];
             const done = entries.at(-1)?.stage === 'done' ? entries.pop() : undefined;
+            const previous = entries.at(-1);
+            if (event.stage === 'done' && event.status === 'error' && previous?.status === 'error' && previous.message === event.message)
+                return old;
             entries.push(event);
-            if (done)
+            if (done && !(done.status === 'error' && event.status === 'error' && done.message === event.message))
                 entries.push(done);
             return { ...old, entries: entries.slice(-2000), warning: !old.running&&!old.failed&&entries.some(entry=>entry.status==='warning'||entry.status==='error') };
         });

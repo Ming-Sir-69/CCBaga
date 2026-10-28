@@ -1,5 +1,5 @@
 // [INPUT]: 当前用户 procfs、zoneinfo、桌面偏好和本地会话工具。
-// [OUTPUT]: Linux 平台 JSON 桥；未知状态保留 null，会话语言变化要求用户手动操作。
+// [OUTPUT]: Linux 平台 JSON 桥；浏览器资料按唯一绝对参数/目录设备与 inode/进程启动时间核验，可疑候选读取失败阻断；区域预检保留 modifier，未知状态不冒充成功。
 // [POS]: 仅原生识别与用户触发的系统操作；不含网络客户端，不向 UI 输出进程参数或代理秘密。
 // [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 use serde_json::{json, Value};
@@ -200,19 +200,159 @@ pub fn node_cli(process: &Process) -> bool {
     }
     false
 }
-fn profile_processes(profile: &str) -> Result<Vec<Process>, String> {
-    let expected = format!("--user-data-dir={profile}");
-    Ok(processes()?
-        .into_iter()
-        .filter(|p| {
-            // Only the browser parent, never unrelated processes mentioning this path.
-            matches!(
-                p.executable.file_name().and_then(|s| s.to_str()),
-                Some("chrome" | "chromium" | "chromium-browser")
-            ) && !p.args.iter().any(|a| a.starts_with("--type="))
-                && p.args.iter().any(|a| a == &expected)
-        })
-        .collect())
+const PROFILE_UNKNOWN: &str = "无法确认浏览器进程的资料归属，未操作资料。";
+#[derive(PartialEq, Eq)]
+struct ProfileProcess {
+    pid: i32,
+    executable: PathBuf,
+    started: u64,
+}
+fn browser_name(value: &str) -> bool {
+    matches!(
+        value.strip_suffix(" (deleted)").unwrap_or(value),
+        "chrome" | "chromium" | "chromium-browser" | "chromium-browse"
+    )
+}
+fn browser_profile_argument(args: &[String]) -> Result<Option<&Path>, String> {
+    let mut selected = None;
+    let mut args = args.iter().skip(1);
+    while let Some(arg) = args.next() {
+        if arg == "--" {
+            break;
+        }
+        if arg
+            .strip_prefix("--type=")
+            .is_some_and(|value| !value.is_empty())
+        {
+            return Ok(None);
+        }
+        let value = if arg == "--user-data-dir" {
+            Some(args.next().ok_or(PROFILE_UNKNOWN)?.as_str())
+        } else {
+            arg.strip_prefix("--user-data-dir=")
+        };
+        if let Some(value) = value {
+            if selected.is_some() || !Path::new(value).is_absolute() {
+                return Err(PROFILE_UNKNOWN.into());
+            }
+            selected = Some(Path::new(value));
+        }
+    }
+    Ok(selected)
+}
+fn browser_stamp(process: &Path) -> Result<Option<(u32, u64)>, String> {
+    let uid = fs::metadata(process).map_err(|_| PROFILE_UNKNOWN)?.uid();
+    if uid != unsafe { getuid() } {
+        return Ok(None);
+    }
+    let stat = fs::read_to_string(process.join("stat")).map_err(|_| PROFILE_UNKNOWN)?;
+    let mut fields = stat
+        .rsplit_once(')')
+        .ok_or(PROFILE_UNKNOWN)?
+        .1
+        .split_whitespace();
+    if matches!(fields.next(), Some("Z" | "X")) {
+        return Ok(None);
+    }
+    let started = fields
+        .nth(18)
+        .and_then(|s| s.parse().ok())
+        .ok_or(PROFILE_UNKNOWN)?;
+    Ok(Some((uid, started)))
+}
+// ----- 浏览器独立扫描；不改变 Claude 通用枚举的匹配规则，不因无关进程读失败阻断 -----
+fn profile_processes_at(proc_root: &Path, profile: &Path) -> Result<Vec<ProfileProcess>, String> {
+    match fs::metadata(profile) {
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Ok(metadata) if metadata.is_dir() => {}
+        _ => return Err(PROFILE_UNKNOWN.into()),
+    }
+    let mut result = Vec::new();
+    for entry in fs::read_dir(proc_root)
+        .map_err(|_| PROFILE_UNKNOWN)?
+        .flatten()
+    {
+        let Ok(pid) = entry.file_name().to_string_lossy().parse::<i32>() else { continue };
+        if pid <= 1 {
+            continue;
+        }
+        let process = entry.path();
+        let executable = fs::read_link(process.join("exe"));
+        let candidate = match &executable {
+            Ok(path) => path
+                .file_name()
+                .and_then(|s| s.to_str())
+                .is_some_and(browser_name),
+            Err(_) => {
+                fs::read_to_string(process.join("comm")).is_ok_and(|name| browser_name(name.trim()))
+            }
+        };
+        if !candidate {
+            continue;
+        }
+        let read = (|| -> Result<Option<ProfileProcess>, String> {
+            let Some(before) = browser_stamp(&process)? else { return Ok(None) };
+            let bytes = fs::read(process.join("cmdline")).map_err(|_| PROFILE_UNKNOWN)?;
+            if bytes.last() != Some(&0) {
+                return Err(PROFILE_UNKNOWN.into());
+            }
+            let args = bytes[..bytes.len() - 1]
+                .split(|b| *b == 0)
+                .map(|s| std::str::from_utf8(s).map(str::to_owned))
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|_| PROFILE_UNKNOWN)?;
+            if browser_stamp(&process)? != Some(before) {
+                return Err(PROFILE_UNKNOWN.into());
+            }
+            let selected = browser_profile_argument(&args)?;
+            // 辅助进程不持有父进程资料锁；普通外部浏览器的默认资料也不属于本应用。
+            let helper = args
+                .iter()
+                .skip(1)
+                .take_while(|s| s.as_str() != "--")
+                .any(|s| {
+                    s.strip_prefix("--type=")
+                        .is_some_and(|value| !value.is_empty())
+                });
+            if helper {
+                return Ok(None);
+            }
+            // 沙箱辅助进程的 exe 可能不可读；仅元数据稳定且参数明确为辅助模式才先排除。
+            let executable = executable.map_err(|_| PROFILE_UNKNOWN)?;
+            let Some(selected) = selected else {
+                return if matches!(executable.parent().and_then(Path::file_name).and_then(|s| s.to_str()), Some("LinuxBrowser" | "CCBaga-B")) {
+                    Err(PROFILE_UNKNOWN.into())
+                } else { Ok(None) };
+            };
+            let a = fs::metadata(selected).map_err(|_| PROFILE_UNKNOWN)?;
+            let b = fs::metadata(profile).map_err(|_| PROFILE_UNKNOWN)?;
+            if !a.is_dir() || !b.is_dir() {
+                return Err(PROFILE_UNKNOWN.into());
+            }
+            if browser_stamp(&process)? != Some(before) {
+                return Err(PROFILE_UNKNOWN.into());
+            }
+            Ok(
+                (a.dev() == b.dev() && a.ino() == b.ino()).then_some(ProfileProcess {
+                    pid,
+                    executable,
+                    started: before.1,
+                }),
+            )
+        })();
+        match read {
+            Ok(Some(process)) => result.push(process),
+            Ok(None) => {}
+            Err(_)
+                if fs::metadata(&process)
+                    .is_err_and(|e| e.kind() == std::io::ErrorKind::NotFound) => {}
+            Err(error) => return Err(error),
+        }
+    }
+    Ok(result)
+}
+fn profile_processes(profile: &str) -> Result<Vec<ProfileProcess>, String> {
+    profile_processes_at(Path::new("/proc"), Path::new(profile))
 }
 pub unsafe fn rf_browser_running(profile: *const c_char) -> *mut c_char {
     response(profile_processes(input(profile)).map(|ps| json!({"running": !ps.is_empty()})))
@@ -221,10 +361,7 @@ pub unsafe fn rf_browser_quit(profile: *const c_char) -> *mut c_char {
     response((|| {
         let profile = input(profile);
         for target in profile_processes(profile)? {
-            if profile_processes(profile)?
-                .iter()
-                .any(|p| p.pid == target.pid && p.executable == target.executable)
-                && kill(target.pid, 15) != 0
+            if profile_processes(profile)?.iter().any(|p| p == &target) && kill(target.pid, 15) != 0
             {
                 return Err(
                     "Could not close the companion browser; close its windows manually.".into(),
@@ -271,15 +408,21 @@ fn timezone() -> String {
             output("timedatectl", &["show", "--property=Timezone", "--value"]).unwrap_or_default()
         })
 }
-fn session_locale(category: &str) -> String {
+fn raw_session_locale(category: &str) -> String {
     ["LC_ALL", category, "LANG"]
         .iter()
         .find_map(|key| std::env::var(key).ok().filter(|s| !s.is_empty()))
         .unwrap_or_else(|| "C".into())
-        .split('.')
-        .next()
-        .unwrap_or("C")
-        .into()
+}
+fn session_locale(category: &str) -> String {
+    let raw = raw_session_locale(category);
+    let (head, modifier) = raw.split_once('@').unwrap_or((&raw, ""));
+    let base = head.split('.').next().unwrap_or("C");
+    if modifier.is_empty() {
+        base.into()
+    } else {
+        format!("{base}@{modifier}")
+    }
 }
 fn locale() -> String {
     session_locale("LC_TIME")
@@ -295,6 +438,8 @@ fn language_matches(current: &str, requested: &str) -> bool {
                 .is_some_and(|s| s.starts_with('-')))
 }
 fn language(locale: &str) -> String {
+    // 地区覆盖不改变语言/脚本；例如 zh_CN@rg=twzzzz 仍为简体中文。
+    let locale = locale.split('@').next().unwrap_or(locale);
     match locale {
         "zh_CN" | "zh_SG" => "zh-Hans".into(),
         "zh_TW" | "zh_HK" => "zh-Hant".into(),
@@ -332,7 +477,8 @@ pub unsafe fn rf_browser_machine() -> *mut c_char {
     state["cores"] = json!(std::thread::available_parallelism()
         .map(|n| n.get())
         .unwrap_or(1));
-    state["locale"] = json!(locale());
+    // 浏览器保留原始区域；系统预检仅去除代码集，不能丢掉改变地区的 modifier。
+    state["locale"] = json!(raw_session_locale("LC_TIME"));
     // TUN is the documented route. Do not silently report a desktop proxy as direct.
     let proxy = ["ALL_PROXY", "all_proxy", "HTTPS_PROXY", "https_proxy"]
         .iter()
@@ -430,15 +576,149 @@ mod tests {
         assert!(!node_cli(&p));
     }
     #[test]
+    fn browser_profiles_require_unique_arguments_and_verified_directory_identity() {
+        use std::os::unix::fs::symlink;
+        let root = std::env::temp_dir().join(format!(
+            "ccbaga-linux-proc-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let proc_root = root.join("proc");
+        let profile = root.join("profile");
+        let other = root.join("profile-other");
+        for path in [&proc_root, &profile, &other] {
+            fs::create_dir_all(path).unwrap();
+        }
+        let alias = root.join("alias");
+        symlink(&profile, &alias).unwrap();
+        let process = proc_root.join("42");
+        fs::create_dir(&process).unwrap();
+        symlink(root.join("LinuxBrowser/chrome"), process.join("exe")).unwrap();
+        fs::write(process.join("comm"), "chrome\n").unwrap();
+        let stat = format!("42 (chrome) S {} 100\n", vec!["0"; 18].join(" "));
+        fs::write(process.join("stat"), &stat).unwrap();
+        let command = |args: &[&str]| {
+            let mut bytes = args.join("\0").into_bytes();
+            bytes.push(0);
+            fs::write(process.join("cmdline"), bytes).unwrap();
+        };
+        for selected in [&profile, &alias, &profile.join(".")] {
+            command(&["chrome", "--user-data-dir", selected.to_str().unwrap()]);
+            let found = profile_processes_at(&proc_root, &profile).unwrap();
+            assert_eq!(found.len(), 1);
+            assert_eq!((found[0].pid, found[0].started), (42, 100));
+        }
+        let expected = format!("--user-data-dir={}", profile.display());
+        for invalid in [
+            vec!["chrome"],
+            vec!["chrome", "--", &expected],
+            vec!["chrome", &expected, &expected],
+            vec!["chrome", "--user-data-dir"],
+            vec!["chrome", "--user-data-dir=relative"],
+            vec!["chrome", "--user-data-dir=", &expected],
+        ] {
+            command(&invalid);
+            assert!(
+                profile_processes_at(&proc_root, &profile).is_err(),
+                "{invalid:?}"
+            );
+        }
+        command(&["chrome", "--type=renderer", &expected]);
+        assert!(profile_processes_at(&proc_root, &profile)
+            .unwrap()
+            .is_empty());
+        command(&["chrome", "--user-data-dir", other.to_str().unwrap()]);
+        assert!(profile_processes_at(&proc_root, &profile)
+            .unwrap()
+            .is_empty());
+        assert!(profile_processes_at(&proc_root, &root.join("not-created"))
+            .unwrap()
+            .is_empty());
+        command(&["chrome", &expected]);
+        fs::remove_file(process.join("stat")).unwrap();
+        assert!(profile_processes_at(&proc_root, &profile).is_err());
+        fs::write(process.join("stat"), &stat).unwrap();
+        fs::remove_file(process.join("cmdline")).unwrap();
+        assert!(profile_processes_at(&proc_root, &profile).is_err());
+        fs::write(process.join("cmdline"), b"chrome\0\xff\0").unwrap();
+        assert!(profile_processes_at(&proc_root, &profile).is_err());
+        fs::remove_file(process.join("exe")).unwrap();
+        assert!(profile_processes_at(&proc_root, &profile).is_err());
+        command(&["chrome", "--type=renderer", &expected]);
+        assert!(profile_processes_at(&proc_root, &profile)
+            .unwrap()
+            .is_empty());
+        command(&["chrome", &expected]);
+        assert!(profile_processes_at(&proc_root, &profile).is_err());
+        // ----- 无关系统进程的读失败不阻断，明确外部浏览器默认资料也不混入 -----
+        fs::write(process.join("comm"), "bash\n").unwrap();
+        assert!(profile_processes_at(&proc_root, &profile)
+            .unwrap()
+            .is_empty());
+        symlink(root.join("system/chrome"), process.join("exe")).unwrap();
+        command(&["chrome"]);
+        assert!(profile_processes_at(&proc_root, &profile)
+            .unwrap()
+            .is_empty());
+        command(&["chrome", &expected]);
+        fs::write(process.join("stat"), stat.replace(" S ", " Z ")).unwrap();
+        assert!(profile_processes_at(&proc_root, &profile)
+            .unwrap()
+            .is_empty());
+        fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
     fn session_language_mapping_and_matching_respect_language_boundaries() {
         assert_eq!(language("zh_TW"), "zh-Hant");
         assert_eq!(language("zh_CN"), "zh-Hans");
+        assert_eq!(language("zh_CN@rg=twzzzz"), "zh-Hans");
         assert_eq!(language("en_US"), "en-US");
         assert_eq!(language("de_DE"), "de");
         assert!(language_matches("en-US", "en"));
         assert!(language_matches("en-US", "en-US"));
         for invalid in ["", "e", "en-U", "en-GB", "en-US;bad"] {
             assert!(!language_matches("en-US", invalid));
+        }
+    }
+    #[test]
+    fn locale_modifiers_do_not_pass_a_different_region_preflight() {
+        const FIXTURE: &str = "CCBAGA_TEST_LINUX_LOCALE";
+        if let Ok(expected) = std::env::var(FIXTURE) {
+            assert_eq!(session_language(), "zh-Hans");
+            let state = crate::browser::config::machine().unwrap();
+            assert_eq!(
+                state.locale_country,
+                if expected == "allow" { "CN" } else { "TW" }
+            );
+            let result: Result<Value, _> = crate::native::decode(unsafe {
+                rf_system_region(b"zh-Hans\0".as_ptr().cast(), b"zh_CN\0".as_ptr().cast())
+            });
+            assert_eq!(result.is_ok(), expected == "allow");
+            return;
+        }
+        // ----- 独立子进程固定会话环境，不改其他回归或用户登录会话 -----
+        for (region, expected) in [("zh_CN.UTF-8@rg=twzzzz", "deny"), ("zh_CN.UTF-8", "allow")] {
+            let child = std::process::Command::new(std::env::current_exe().unwrap())
+                .args([
+                    "--exact",
+                    "linux::tests::locale_modifiers_do_not_pass_a_different_region_preflight",
+                    "--test-threads=1",
+                ])
+                .env_remove("LC_ALL")
+                .env("LC_MESSAGES", "zh_CN.UTF-8")
+                .env("LC_TIME", region)
+                .env("LANG", "en_US.UTF-8")
+                .env(FIXTURE, expected)
+                .output()
+                .unwrap();
+            assert!(
+                child.status.success(),
+                "{region}: {}",
+                String::from_utf8_lossy(&child.stderr)
+            );
         }
     }
     #[test]

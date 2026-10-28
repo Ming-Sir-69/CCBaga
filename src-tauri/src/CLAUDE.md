@@ -2,7 +2,7 @@
 > L2 | 父级: ../CLAUDE.md
 清理在本机执行；网络页只提供固定资源入口，SSH 由应用外 Skill 执行。生产命令提供身份压缩暂存、空身份切换、恢复、独立确认的直接删除及当前默认 Claude 文件残留维护。用户选择保留或随身份暂存，文件残留另经扫描和选择清理，系统设置独立。
 identities/ - SQLite 身份目录与脱敏摘要、用户保留策略、原地加密备份、加密压缩暂存、空身份切换、恢复与选择性直接删除；见其 CLAUDE.md。
-cleaner_identity.rs: 身份目标/保留策略与窄 JSON 操作、真实 Claude 进程结果和瞬态锁分类；锁仅从快照/旧归档恢复中排除，不借结束进程或备份自动删除文件；非空同名目录仍作为用户数据，复用完整快照和所有权边界，不扫描源码，共享代理遵循个人设置保留选择。
+cleaner_identity.rs: 根目录 .claude.json.backup[.*] 的恢复许可独立于当前磁盘发现；身份目标/保留策略与窄 JSON 操作、真实 Claude 进程结果和瞬态锁分类；锁仅从快照/旧归档恢复中排除，不借结束进程或备份自动删除文件；非空同名目录仍作为用户数据，复用完整快照和所有权边界，不扫描源码，共享代理遵循个人设置保留选择。
 updater_tests.rs: 官方更新器本机 HTTP 公开向量验证篡改与版本冒用；发布显式传入实际清单/归档，下载核验而不安装。
 main.rs: 官方更新/重启/原生文件选择插件与 Tauri 生命周期、双语托盘和文件残留扫描/选择清理、身份/密码迁移一次性文件票据/CLI/浏览器/固定网络入口命令注册；启动时带起 CCBaga-B，退出删除 start.url；发布缺少 custom-protocol 时编译失败，防止安装包依赖开发服务；Windows 正式宿主使用 GUI 子系统，CI 仅记录固定启动阶段定位实际运行阻塞，不记录参数或用户资料。
 ui_language.rs: 受 zh/en 白名单限制的界面偏好，原子持久化后发布内存状态；共用托盘菜单，独立于电脑与浏览器语言。
@@ -10,8 +10,9 @@ browser/: 指纹浏览器、资料与缓存边界、真实浏览器回报及目�
 windows.rs: Win32 剪贴板、TokenUser/TokenOwner 文件检查、绝对长路径、真实 UI 语言/区域/时区和本机代理；不以额外管理员组扩大信任，不将新偏好冒充当前显示语言；拒绝凭据管理器自动读取和 SSH 操作。
 windows_tests.rs: 隔离文件所有者、长路径/命名空间及代理/语言格式回归；CI 专用时区写入后还原，不操作本机真实身份。
 windows_timezones.rs: CLDR 48 固定全量 Windows/IANA 映射与目录别名，无运行时下载或猜测；原始许可证作为 Windows 资源交付。
-windows_process.rs: 当前用户 Toolhelp/MSIX 固定 Claude 包族与精确 CLI 参数识别、创建时间和句柄复核、独立资料的正常窗口关闭；原始参数不序列化，超时子进程使用 Job Object；Windows CI 回归实际映射时区写入后还原。
-system.rs: 电脑环境查询、独立修改命令与目录限定的地区时区/语言/区域应用；后台执行原生操作，错误后重新读取系统状态。
+windows_browser_arguments.rs: Windows 8.1+ NtQueryInformationProcess 经仅查询句柄读取浏览器完整 argv，校验本地 UNICODE_STRING 缓冲范围/长度/对齐并拒绝非法 UTF16/NUL，避免沙箱 VM_READ 需求；未知不冒充空参数，测试只读本测试进程。
+windows_process.rs: Win32 当前用户 Toolhelp/MSIX Claude 精确识别、创建时间与句柄终止；浏览器独立扫描本人固定引擎，以唯一绝对资料参数和目录 volume/fileIndex 核验，支持 verbatim/8.3 别名，读取未知阻止修改、仅持原句柄确认退出才忽略竞态；正常 WM_CLOSE 只发给已证明目标。浏览器仅查询句柄读取完整 argv，CLI PEB 的 VM_READ 路径保留；原始 argv 不序列化，CLI 超时继续 Job Object 限树；Windows CI 复核时区写入并还原。
+system.rs: macOS 地区参数在修改时区前只读预检，读回按系统规范别名核验；电脑环境查询、独立修改命令与目录限定的地区时区/语言/区域应用；后台执行原生操作，错误后重新读取系统状态。
 native.rs: 剪贴板、辅助功能设置、进程编号与凭据解锁桥；旧扫描只读凭据属性，已移除旧批量单项凭据删除包装；身份快照/恢复仅原生可用，默认服务正文不送 UI。
 cleaner.rs: 共享精确进程停止、文件扫描/快照保护/只读进程状态与独立残留扫描计划；Windows 外置 AppData 只允许同一目标白名单且复核规范路径/用户所有权；原生 CLI 识别当前用户官方 versions 下的精确数字版本程序；结束全部已识别的 Claude 进程时逐轮核验与收敛；CLI/身份/残留修改共用事务锁，各调用独立进度通道。
 claude_cli.rs: Windows 子进程移除继承 PSModulePath 以重建 5.1 模块路径，并仅检查命令环境而不启动真实 CLI；原生重装失败回滚/阻断恢复回归；优先最后的固定恢复结论，测试脚本替身不成为生产环境入口。内嵌脚本的只读状态与 CLI 程序卸载/重装，登录终端加载 nvm 环境，固定动作与原生互斥锁限制修改；真实阶段沿用进度通道，超时结束本次子进程组或 Job Object；Windows 完成时先回收本次子进程树再读取完整协议，成功要求完整回报；临时目录测试清空继承环境并在 zsh 启动后固定样本 PATH，验证版本、卸载、资产保留和失败不报成功，不能探测或卸载真实安装。
@@ -25,6 +26,6 @@ cleaner_config.rs: 账号缓存和代理认证配置的窄范围变换；Code �
 cleaner_io.rs: 清理后配置原子写入；Windows 写入前保留原所有者/DACL，临时文件仅保存新内容，失败移除，不保留原配置。
 cleaner_tests.rs: 临时白名单/快照/日志验证，覆盖超过 30,000 文件的完整清理与权限失败保护；官方原生版本路径、自编译并经启动握手的可丢弃进程与 Node 样本验证身份、终止与其他 Node 保留；Windows 子进程隔离的外置 AppData 验证白名单和身份目标，不复制系统平台二进制，不修改用户数据。
 regions.rs: 地区编号到语言、区域格式和代表时区的唯一白名单、ICU/BCP 47 有效区域解析与独立国家/时区匹配；供前端选择与系统/浏览器快捷操作共用，包含目录与本机时区验证。
-linux.rs: Linux procfs 当前用户进程、zoneinfo/timedatectl、GNOME 定位偏好、GNOME/KDE 设置入口与 Wayland/X11 剪贴板；LC_MESSAGES/LC_TIME 分别读取会话语言/区域格式，不匹配时先报手动操作再改时区；未知定位为 null，Linux 钥匙串明确不可用；不将系统代理凭据序列化给 WebView。
+linux.rs: 浏览器独立扫描与目录 inode/启动时间复核，候选读取失败阻断，Claude 枚举保持原规则；浏览器快照保留原始 LC_TIME（含代码集后 @rg），系统预检仅去代码集并保留 modifier，防有效地区误报，无效覆盖不回退基础国家；Linux procfs 当前用户进程、zoneinfo/timedatectl、GNOME 定位偏好、GNOME/KDE 设置入口与 Wayland/X11 剪贴板；LC_MESSAGES/LC_TIME 分别读取会话语言/区域格式，不匹配时先报手动操作再改时区；未知定位为 null，Linux 钥匙串明确不可用；不将系统代理凭据序列化给 WebView。
 network_links.rs: 固定四域名并发只读 HTTP 探针；下载元数据仅接受 HTTP200、流式最多64字节的三段数字版本，空/畸形/超限/截断均失败且正文不进UI；其他域名维持连通性/浏览器质询语义；重定向只认可无认证的官方HTTPS:443目标，始终不跟随。默认不继承代理认证、不跟随重定向、八秒超时；固定供应商与 Skill 导航白名单，编译消费 providers.json 组装原始 URL，WebView 不能指定 URL；无密钥访问或 SSH 执行。
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
