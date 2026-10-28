@@ -694,6 +694,14 @@
     "source_integration_pr": 68,
     "source_merge_commit": "de29f9ff23996818a12417bc2b192db13d008bc4",
     "report_updated_utc": "2026-10-28T03:04:29.090233+00:00",
-    "public_delivery": "not published; issue49 awaits verified installer; owner visual/release authorization and browser patch-coverage boundary remain"
+    "public_delivery": "explicitly authorized by user: 交付; official build/sign/notarization/package verification pending; pinned browser retained with unverified patch coverage disclosed"
+  },
+  "delivery": {
+    "authorization": "用户在已告知既有引擎覆盖边界后明确要求：交付",
+    "authorized_at_utc": "2026-10-28T04:25:49.835343+00:00",
+    "candidate_version": "v0.2.50",
+    "pinned_engine": "148.0.7778.215 unchanged",
+    "browser_patch_coverage": "unverified; source/byte checks are not independent browser vulnerability clearance",
+    "status": "authorized; awaiting official pipeline and public artifact verification"
   }
 }
