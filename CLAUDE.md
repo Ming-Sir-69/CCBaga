@@ -28,6 +28,7 @@ CONTRIBUTING.md - 英文贡献流程与模块契约
 LICENSE - 项目原创代码 MIT 授权
 NOTICE.md - 第三方引擎、组件与图标的授权边界
 .gitignore - 排除本机凭据、依赖、引擎与发布产物
+.gitattributes - 保持 GLib 上游快照的原始字节，避免 Windows 自动换行破坏来源摘要
 </config>
 
 法则：侧栏傻瓜设置置顶，分隔线后网络环境、Claude 身份管理、浏览器环境、电脑环境，再分隔使用说明；BAGA! 品牌和黑白 Laper 斜纹/点阵壳，完整侧栏边框，底部更新与界面语言。YAML 中英文独立于系统/指纹语言，运行包嵌入前端，不依赖开发服务。

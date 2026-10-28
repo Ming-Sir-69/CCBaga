@@ -1,0 +1,5 @@
+# [INPUT]: crates.io 原包的逐文件 SHA-256 与 Windows Git 的自动换行转换。
+# [OUTPUT]: 上游 GLib 快照以原始字节检出，三平台使用同一来源证明。
+# [POS]: 仅约束需逐字核验的第三方源码，不改变应用源码的换行策略。
+# [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+vendor/glib/** -text
