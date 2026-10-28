@@ -141,7 +141,7 @@ def check(config_path, fetch=True, notify=True):
     report['requires_attention'] = report['state'] in ('conflict', 'error', 'local_changes', 'validation_failed')
     report['pending_event'] = report['requires_attention'] and report['event_id'] != report['last_handled_event_id']
     report['status_path'] = str(state_file)
-    report['notification'] = 'not_needed' 
+    report['notification'] = 'not_needed'
     report['notified_fingerprint'] = old.get('notified_fingerprint')
     atomic_json(state_file, report)
     should_notify = report['state'] in ('conflict', 'error', 'local_changes', 'validation_failed') and report['fingerprint'] != old.get('notified_fingerprint')
