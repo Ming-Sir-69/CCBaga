@@ -51,9 +51,13 @@ Windows Skill 私密文件采用用户 SID 独占且保护的 NTFS ACL，写入�
 
 ### 已确认的上游依赖风险
 
-Linux 的既有 Tauri/Wry/GTK 依赖链仍包含 `glib 0.18.5`，命中 [RUSTSEC-2024-0429](https://rustsec.org/advisories/RUSTSEC-2024-0429.html)：`VariantStrIter` 的迭代实现存在内存安全问题，官方修复版本为 `>=0.20.0`。本次静态检索应用与锁定依赖源码，未发现 `Variant::array_iter_str` / `VariantStrIter` 的应用调用路径；这不构成不可利用的证明。当前框架要求 `glib ^0.18`，单独增加新版本不能修复旧链。本轮没有隐藏或忽略该公告，也没有引入未经 Linux 优化构建验证的私有补丁；后续需兼容的框架升级或经审查的可追溯回补。
+Linux 的 Tauri/Wry/GTK3 依赖链仍要求 `glib ^0.18`。原版 `glib 0.18.5` 命中 [RUSTSEC-2024-0429](https://rustsec.org/advisories/RUSTSEC-2024-0429.html)，不能通过另加 `glib >=0.20` 替换旧 ABI。本项目以 `[patch.crates-io]` 指向 `vendor/glib`：它是 SHA-256 为 `233daaf6e83ae6a12a52055f568f9d7cf4671dabb78ff9560ab6da230ce00ee5` 的 crates.io 原包，仅应用[官方修复 b5a4071](https://github.com/gtk-rs/gtk-rs-core/commit/b5a4071e439bef2b5eea76c3aa25e5ae84839e34)的两行变更，把 C 出参改为 `let mut p` / `&mut p`。保留原版本、MIT 许可与上游源文件，不以改版本或扫描忽略伪装修复。
 
-同一既有 GTK 构建链的 `proc-macro-error 1.0.4` 命中 [RUSTSEC-2024-0370](https://rustsec.org/advisories/RUSTSEC-2024-0370.html) 的停止维护提示；这是构建期维护风险，不应冒充已确认的运行时漏洞或恶意代码。依赖扫描无新增公告不等于整库没有风险，功能测试通过也不替代安全审查。
+`python3 scripts/test-glib-backport.py` 逐文件核对原包摘要，只有上述已知回补允许偏离。Linux CI 另运行 `--native`，以真实 GLib 的优化构建执行上游 `variant_iter::tests`；完整应用仍经过 Ubuntu 22.04 原生检查。Cargo 的 registry 版本扫描不覆盖该本地路径依赖，因此 GLib 的来源验收与真实原生回归独立执行；后续新 GLib 公告仍须按受影响函数核对，不能把总体扫描零漏洞当作本地回补的自动背书。框架兼容官方安全版本后，应移除本地覆盖与对应快照。测试和审计各自报告实际结果，不将来源校验当成原生运行通过。
+
+本轮完整 Cargo 锁扫描还更新了 `rustls 0.23.46`、`rustls-webpki 0.103.16`、`webpki-root-certs 1.0.10`、前后端 `tauri-plugin-updater 2.14.1`、`zip 9.1.3` 与 `zstd 0.14.3`，处理 TLS 秘密输出/握手/证书信任、ZIP 解包与压缩流复用公告。ZIP 按官方实际修复范围选用安全版本，不仅依赖公告数据库较宽的版本判断。2026-10-27 的官方 RustSec 数据库提交 `99670cfc0bc574433034b75876a4b791ccaa2efb` 扫描此锁文件为 0 条漏洞；Vite 7.3.7 后的 Bun 扫描同样为 0。该结果只针对当时数据库和当前锁定源码，不是未来不会出现漏洞的保证。
+
+同一既有 GTK 构建链的 `proc-macro-error 1.0.4` 命中 [RUSTSEC-2024-0370](https://rustsec.org/advisories/RUSTSEC-2024-0370.html) 的停止维护提示；另有 `zbus_names 4.3.4`、`zvariant 5.15.0` 和 `zvariant_derive 5.15.0` 的停止维护提示。它们是维护风险，不应冒充已确认的运行时漏洞或恶意代码。依赖扫描无新增公告不等于整库没有风险，功能测试通过也不替代安全审查。
 
 ## 本地身份保险库
 

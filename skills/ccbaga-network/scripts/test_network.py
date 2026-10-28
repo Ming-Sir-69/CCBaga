@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # [INPUT]: 本 Skill 执行层、临时密钥/配置和可丢弃本机子进程。
-# [OUTPUT]: 固定 URL、IPv4/DNS/无作用域 IPv6、配对/权限、注入边界、有界传输、超时和订阅来源离线回归。
+# [OUTPUT]: 固定 URL、IPv4/DNS/无作用域 IPv6、配对/权限、注入边界、有界传输、超时、known_hosts 引号/百分号保真与环境变量展开拒绝回归。
 # [POS]: 安装后即可运行的标准库验收；不读取用户配置或连接 VPS。
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 import importlib.util
@@ -150,6 +150,39 @@ class NetworkTests(unittest.TestCase):
         self.assertIn('IdentityAgent=none',args)
         curl = n.curl_config(conf)
         self.assertIn(json.dumps(conf['home_user']+':'+conf['home_pass']),curl)
+
+    def test_known_hosts_quotes_survive_openssh_config_parsing(self):
+        try:
+            ssh = n.program('ssh')
+        except ValueError:
+            self.skipTest('OpenSSH is required')
+        # ----- 完整生产参数经 -G 验收；-F none 原生禁读用户/系统配置，不依赖 NUL -----
+        key = self.root / 'key'
+        key.write_text('fixture')
+        names = ['plain dir', 'percent%h', 'percent%q']
+        if os.name != 'nt':
+            names.extend(['say"hi', 'a\\b'])
+        for name in names:
+            with self.subTest(name=name):
+                folder = self.root / name
+                folder.mkdir()
+                hosts = folder / 'known_hosts'
+                hosts.write_text('')
+                args = n.ssh_args(self.config(), key, folder / 'connection.json')
+                result = subprocess.run(
+                    [ssh, '-G', *args[1:]],
+                    capture_output=True, text=True)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(args[args.index('-F') + 1], 'none')
+                self.assertIn('identityagent none', result.stdout.lower())
+                self.assertIn('batchmode yes', result.stdout.lower())
+                parsed = next(line.split(' ', 1)[1].strip() for line in result.stdout.splitlines()
+                              if line.startswith('userknownhostsfile '))
+                self.assertEqual(Path(parsed), hosts)
+        for name in ['${CCBAGA_SSH_PATH}', 'line\nbreak']:
+            with self.subTest(rejected=name):
+                with self.assertRaisesRegex(ValueError, 'known_hosts path'):
+                    n.ssh_args(self.config(), self.root / 'key', self.root / name / 'connection.json')
 
     def test_failed_or_timed_out_process_never_returns_success(self):
         with self.assertRaises(RuntimeError): n.execute([sys.executable,'-c','raise SystemExit(1)'])

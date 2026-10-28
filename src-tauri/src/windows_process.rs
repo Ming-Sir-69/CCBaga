@@ -1,5 +1,5 @@
 // [INPUT]: Win32 Toolhelp/进程句柄、当前用户 SID、精确 CLI 入口与独立浏览器资料路径。
-// [OUTPUT]: 官方 CLI/固定 Desktop 路径与已核验包族的进程识别、创建时间/用户复核后的结束及独立浏览器正常关闭。
+// [OUTPUT]: 官方 CLI/Desktop 精确进程与句柄复核后的结束；浏览器限本人固定引擎、唯一绝对资料参数和同目录句柄标识，读取未知阻止修改。
 // [POS]: Windows 进程边界；参数仅用于原生判定，不返回 UI；不对其他用户或名称相似的程序执行终止。
 // [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 use super::{current_sid, input, process_sid, response};
@@ -7,7 +7,10 @@ use crate::cleaner::ClaudeProcess;
 use serde_json::json;
 use std::{ffi::c_char, path::Path};
 use windows_sys::Win32::{
-    Foundation::{CloseHandle, LocalFree, FILETIME, HANDLE, HWND, INVALID_HANDLE_VALUE, LPARAM},
+    Foundation::{
+        CloseHandle, GetLastError, LocalFree, ERROR_INVALID_PARAMETER, ERROR_NO_MORE_FILES,
+        FILETIME, HANDLE, HWND, INVALID_HANDLE_VALUE, LPARAM, STILL_ACTIVE,
+    },
     System::{
         Diagnostics::{
             Debug::ReadProcessMemory,
@@ -17,9 +20,9 @@ use windows_sys::Win32::{
             },
         },
         Threading::{
-            GetProcessTimes, IsWow64Process, OpenProcess, QueryFullProcessImageNameW,
-            TerminateProcess, PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_TERMINATE,
-            PROCESS_VM_READ,
+            GetExitCodeProcess, GetProcessTimes, IsWow64Process, OpenProcess,
+            QueryFullProcessImageNameW, TerminateProcess, PROCESS_QUERY_LIMITED_INFORMATION,
+            PROCESS_TERMINATE, PROCESS_VM_READ,
         },
     },
     UI::{
@@ -27,6 +30,8 @@ use windows_sys::Win32::{
         WindowsAndMessaging::{EnumWindows, GetWindowThreadProcessId, PostMessageW, WM_CLOSE},
     },
 };
+#[path = "windows_browser_arguments.rs"]
+mod browser_arguments;
 struct Handle(HANDLE);
 impl Drop for Handle {
     fn drop(&mut self) {
@@ -172,7 +177,13 @@ fn arguments(handle: &Handle) -> Option<Vec<String>> {
         {
             return None;
         }
-        // ----- 按 Windows 参数语法解析；完整参数判定，禁止子串命中 -----
+        parsed_arguments(&buffer[..command.length as usize / 2])
+    }
+}
+// ----- 两条原生读取路径共用 Windows 参数语法；完整参数判定，禁止子串命中 -----
+fn parsed_arguments(command: &[u16]) -> Option<Vec<String>> {
+    let buffer: Vec<u16> = command.iter().copied().chain(Some(0)).collect();
+    unsafe {
         let mut count = 0;
         let args = CommandLineToArgvW(buffer.as_ptr(), &mut count);
         if args.is_null() {
@@ -339,16 +350,94 @@ pub fn kill_process(target: &ClaudeProcess) -> Result<(), String> {
     }
     Ok(())
 }
-fn profile_matches(args: &[String], profile: &str) -> bool {
-    args.iter().enumerate().any(|(index, arg)| {
-        let value = arg.strip_prefix("--user-data-dir=").or_else(|| {
-            if arg == "--user-data-dir" {
-                args.get(index + 1).map(String::as_str)
-            } else {
-                None
+fn browser_unknown() -> String {
+    "无法确认浏览器进程的资料归属，未操作资料。".into()
+}
+// ----- 参数只有一个明确绝对资料目录；“--”后的文本属于页面参数 -----
+fn profile_argument(args: &[String]) -> Option<&Path> {
+    let mut args = args.iter().skip(1);
+    let mut selected = None;
+    while let Some(arg) = args.next() {
+        if arg == "--" {
+            break;
+        }
+        let value = if arg == "--user-data-dir" {
+            Some(args.next()?.as_str())
+        } else {
+            arg.strip_prefix("--user-data-dir=")
+        };
+        if let Some(value) = value {
+            if selected.is_some() || !Path::new(value).is_absolute() {
+                return None;
             }
-        });
-        value.is_some_and(|value| normalized(value) == normalized(profile))
+            selected = Some(Path::new(value));
+        }
+    }
+    selected
+}
+// ----- 跟随目录别名后比较实际对象，避免 verbatim、8.3 或 junction 名称误判 -----
+fn file_identity(path: &Path, directory: bool) -> Result<(u32, u64), String> {
+    use windows_sys::Win32::Storage::FileSystem::*;
+    let wide = super::wide_path(path);
+    let raw = unsafe {
+        CreateFileW(
+            wide.as_ptr(),
+            0,
+            FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+            std::ptr::null(),
+            OPEN_EXISTING,
+            FILE_FLAG_BACKUP_SEMANTICS,
+            std::ptr::null_mut(),
+        )
+    };
+    if raw == INVALID_HANDLE_VALUE {
+        return Err(browser_unknown());
+    }
+    let handle = Handle(raw);
+    let mut info: BY_HANDLE_FILE_INFORMATION = unsafe { std::mem::zeroed() };
+    if unsafe { GetFileInformationByHandle(handle.0, &mut info) } == 0
+        || (info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY != 0) != directory
+    {
+        return Err(browser_unknown());
+    }
+    Ok((
+        info.dwVolumeSerialNumber,
+        (u64::from(info.nFileIndexHigh) << 32) | u64::from(info.nFileIndexLow),
+    ))
+}
+fn profile_matches(args: &[String], profile: &str) -> Result<bool, String> {
+    let selected = profile_argument(args).ok_or_else(browser_unknown)?;
+    Ok(file_identity(selected, true)? == file_identity(Path::new(profile), true)?)
+}
+// 只对本应用固定安装/开发引擎读取 argv；普通 Chrome 的权限失败不阻断本应用。
+fn companion_image(image: &str) -> bool {
+    // 已安装与开发副本可同时存在；两者都沿用同一 WindowsBrowser 载荷目录。
+    if Path::new(image)
+        .parent()
+        .and_then(Path::file_name)
+        .is_some_and(|name| {
+            name.to_string_lossy()
+                .eq_ignore_ascii_case("WindowsBrowser")
+        })
+    {
+        return true;
+    }
+    let mut expected = vec![Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .join("browser-runtime/WindowsBrowser/chrome.exe")];
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(parent) = exe.parent() {
+            expected.extend([
+                parent.join("browser-runtime/WindowsBrowser/chrome.exe"),
+                parent.join("WindowsBrowser/chrome.exe"),
+            ]);
+        }
+    }
+    expected.iter().any(|path| {
+        normalized(&path.to_string_lossy()) == normalized(image)
+            || file_identity(path, false)
+                .is_ok_and(|expected| file_identity(Path::new(image), false) == Ok(expected))
     })
 }
 unsafe extern "system" fn close_window(window: HWND, pid: LPARAM) -> i32 {
@@ -359,24 +448,124 @@ unsafe extern "system" fn close_window(window: HWND, pid: LPARAM) -> i32 {
     }
     1
 }
+fn process_exited(handle: &Handle) -> Result<bool, String> {
+    let mut exit = 0;
+    if unsafe { GetExitCodeProcess(handle.0, &mut exit) } == 0 {
+        return Err(browser_unknown());
+    }
+    Ok(exit != STILL_ACTIVE as u32)
+}
+fn browser_process(
+    pid: u32,
+    query: &Handle,
+    current: &[u8],
+    profile: &str,
+    close: bool,
+) -> Result<bool, String> {
+    let result = (|| {
+        if process_exited(query)? {
+            return Ok(false);
+        }
+        let user = unsafe { process_sid(query.0) }.ok_or_else(browser_unknown)?;
+        if user.as_slice() != current {
+            return Ok(false);
+        }
+        let image = query.image().ok_or_else(browser_unknown)?;
+        let companion = companion_image(&image);
+        let created = query.created().ok_or_else(browser_unknown)?;
+        let args = match browser_arguments::read(query.0) {
+            Some(args) => args,
+            None if !companion => return Ok(false),
+            None => return Err(browser_unknown()),
+        };
+        if query.created() != Some(created) || query.image().as_deref() != Some(image.as_str()) {
+            return Err(browser_unknown());
+        }
+        // 子渲染器没有独立资料所有权；只由主进程接受正常窗口关闭。
+        if args
+            .iter()
+            .skip(1)
+            .take_while(|arg| arg.as_str() != "--")
+            .any(|arg| {
+                arg.strip_prefix("--type=")
+                    .is_some_and(|value| !value.is_empty())
+            })
+        {
+            return Ok(false);
+        }
+        // 普通 Chrome 默认资料不是本应用资料；显式但畸形的资料参数仍不能冒充未运行。
+        if !companion
+            && !args
+                .iter()
+                .skip(1)
+                .take_while(|arg| arg.as_str() != "--")
+                .any(|arg| arg == "--user-data-dir" || arg.starts_with("--user-data-dir="))
+        {
+            return Ok(false);
+        }
+        if !profile_matches(&args, profile)? {
+            return Ok(false);
+        }
+        if close && unsafe { EnumWindows(Some(close_window), pid as LPARAM) } == 0 {
+            return Err(browser_unknown());
+        }
+        Ok(true)
+    })();
+    // 正常退出可能恰好发生于 argv 读取之间；只有持有原进程句柄证明退出才降级为未运行。
+    if result.is_err() && process_exited(query) == Ok(true) {
+        Ok(false)
+    } else {
+        result
+    }
+}
 fn browser(profile: &str, close: bool) -> Result<bool, String> {
     if !Path::new(profile).is_absolute() {
         return Err("资料路径无效。".into());
     }
+    match std::fs::metadata(profile) {
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+        Ok(metadata) if metadata.is_dir() => {}
+        _ => return Err(browser_unknown()),
+    }
+    let current = current_sid().ok_or_else(browser_unknown)?;
+    // 浏览器单独枚举；不改变 Claude CLI/Desktop 既有的精确识别与结束重试语义。
+    let raw = unsafe { CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) };
+    if raw == INVALID_HANDLE_VALUE {
+        return Err(browser_unknown());
+    }
+    let snapshot = Handle(raw);
+    let mut entry = unsafe { std::mem::zeroed::<PROCESSENTRY32W>() };
+    entry.dwSize = std::mem::size_of::<PROCESSENTRY32W>() as u32;
+    let mut has = unsafe { Process32FirstW(snapshot.0, &mut entry) };
+    let mut last_error = if has == 0 {
+        unsafe { GetLastError() }
+    } else {
+        0
+    };
     let mut found = false;
-    for (pid, handle) in processes(false)? {
-        if handle
-            .image()
-            .is_some_and(|image| normalized(&image).ends_with("\\chrome.exe"))
-            && arguments(&handle).is_some_and(|args| profile_matches(&args, profile))
-        {
-            found = true;
-            if close {
-                unsafe {
-                    EnumWindows(Some(close_window), pid as LPARAM);
+    while has != 0 {
+        let name = String::from_utf16_lossy(&entry.szExeFile)
+            .trim_end_matches('\0')
+            .to_lowercase();
+        if name == "chrome.exe" && entry.th32ProcessID > 1 {
+            let pid = entry.th32ProcessID;
+            let raw = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid) };
+            if raw.is_null() {
+                if unsafe { GetLastError() } != ERROR_INVALID_PARAMETER {
+                    return Err(browser_unknown());
                 }
+            } else {
+                let query = Handle(raw);
+                found |= browser_process(pid, &query, current, profile, close)?;
             }
         }
+        has = unsafe { Process32NextW(snapshot.0, &mut entry) };
+        if has == 0 {
+            last_error = unsafe { GetLastError() };
+        }
+    }
+    if last_error != ERROR_NO_MORE_FILES {
+        return Err(browser_unknown());
     }
     Ok(found)
 }
@@ -433,14 +622,13 @@ mod tests {
             "C:\\other.js".into(),
             "C:\\test\\node_modules\\@anthropic-ai\\claude-code\\cli.js".into()
         ]));
-        assert!(!profile_matches(
-            &["--user-data-dir=C:\\profile-other".into()],
-            "C:\\profile"
-        ));
-        assert!(profile_matches(
-            &["--user-data-dir=C:\\空 格\\profile".into()],
-            "C:\\空 格\\profile"
-        ));
+        assert_eq!(
+            profile_argument(&[
+                "chrome.exe".into(),
+                "--user-data-dir=C:\\空 格\\profile".into()
+            ]),
+            Some(Path::new("C:\\空 格\\profile"))
+        );
         let home = std::env::var("USERPROFILE").unwrap();
         let local = std::env::var("LOCALAPPDATA").unwrap();
         assert_eq!(
@@ -466,5 +654,98 @@ mod tests {
         }
         assert!(current_sid().is_some());
         assert!(Handle::open(std::process::id(), false).is_some());
+    }
+
+    #[test]
+    fn browser_profile_arguments_and_directory_aliases_are_verified() {
+        let root = std::env::temp_dir().join(format!(
+            "ccbaga-profile-{}",
+            crate::identities::new_id().unwrap()
+        ));
+        let profile = root.join("long profile name");
+        let other = root.join("other");
+        for path in [&profile, &other] {
+            crate::identities::private::directory(path).unwrap();
+        }
+        let argument = |path: &Path| format!("--user-data-dir={}", path.display());
+        let args = vec!["chrome.exe".into(), argument(&profile)];
+        assert_eq!(profile_matches(&args, profile.to_str().unwrap()), Ok(true));
+        assert_eq!(profile_matches(&args, other.to_str().unwrap()), Ok(false));
+        assert_eq!(
+            profile_matches(
+                &[
+                    "chrome.exe".into(),
+                    "--user-data-dir".into(),
+                    profile.to_string_lossy().into()
+                ],
+                profile.to_str().unwrap()
+            ),
+            Ok(true)
+        );
+        let verbatim = std::fs::canonicalize(&profile).unwrap();
+        assert_eq!(
+            file_identity(&verbatim, true),
+            file_identity(&profile, true)
+        );
+        let with_dot = profile.join(".");
+        assert_eq!(
+            file_identity(&with_dot, true),
+            file_identity(&profile, true)
+        );
+        let mut short = [0u16; 32768];
+        let length = unsafe {
+            windows_sys::Win32::Storage::FileSystem::GetShortPathNameW(
+                super::super::wide_path(&profile).as_ptr(),
+                short.as_mut_ptr(),
+                short.len() as u32,
+            )
+        };
+        assert!(length > 0 && length < short.len() as u32);
+        let short =
+            std::path::PathBuf::from(String::from_utf16(&short[..length as usize]).unwrap());
+        assert_eq!(file_identity(&short, true), file_identity(&profile, true));
+        for invalid in [
+            vec!["chrome.exe".into()],
+            vec!["chrome.exe".into(), "--user-data-dir".into()],
+            vec!["chrome.exe".into(), "--user-data-dir=".into()],
+            vec!["chrome.exe".into(), "--user-data-dir=relative".into()],
+            vec!["chrome.exe".into(), "--user-data-dir=C:relative".into()],
+            vec!["chrome.exe".into(), "--user-data-dir=\\relative".into()],
+            vec!["chrome.exe".into(), argument(&profile), argument(&profile)],
+            vec![
+                "chrome.exe".into(),
+                argument(&other),
+                "--user-data-dir".into(),
+                profile.to_string_lossy().into(),
+            ],
+            vec!["chrome.exe".into(), "--".into(), argument(&profile)],
+        ] {
+            assert!(profile_matches(&invalid, profile.to_str().unwrap()).is_err());
+        }
+        assert_eq!(
+            profile_matches(
+                &[
+                    "chrome.exe".into(),
+                    argument(&other),
+                    "--".into(),
+                    argument(&profile)
+                ],
+                profile.to_str().unwrap()
+            ),
+            Ok(false)
+        );
+        assert!(profile_matches(
+            &["chrome.exe".into(), argument(&root.join("missing"))],
+            profile.to_str().unwrap()
+        )
+        .is_err());
+        assert_eq!(
+            browser(root.join("missing").to_str().unwrap(), false),
+            Ok(false)
+        );
+        let file = root.join("file");
+        std::fs::write(&file, b"fixture").unwrap();
+        assert!(file_identity(&file, true).is_err());
+        std::fs::remove_dir_all(root).unwrap();
     }
 }

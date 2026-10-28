@@ -1,5 +1,5 @@
 // [INPUT]: 身份保险库与临时文件系统样本。
-// [OUTPUT]: SQLite 策略持久化、完整认证归档、真实阶段/局部完成计数/回滚事件与 Windows 超长暂存路径回归，不读取真实 Claude 凭据。
+// [OUTPUT]: SQLite 策略持久化、完整认证归档、精确生成指针省略/根目录备份往返、真实阶段/回滚事件与 Windows 超长暂存路径回归，不读取真实 Claude 凭据。
 // [POS]: 身份管理的离线验证入口；平台真实登入需用户验收。
 // [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 use super::*;
@@ -303,6 +303,123 @@ fn selected_symlink_is_refused_without_changing_source() {
     );
     drop(store);
     std::fs::remove_dir_all(folder).unwrap();
+}
+
+#[cfg(unix)]
+#[test]
+fn generated_debug_pointer_is_omitted_only_from_current_identity_snapshots() {
+    use optimization_tests::Fixture;
+    let f = Fixture::new();
+    f.write(".claude/debug/session.log", b"inside");
+    private::write(&f.root.join("outside.log"), b"outside").unwrap();
+    let latest = f.home.join(".claude/debug/latest");
+    std::os::unix::fs::symlink(f.root.join("outside.log"), &latest).unwrap();
+    let mut store = store::Store::open(&f.vault, &f.home).unwrap();
+    let reporter = Reporter::channel(None);
+
+    // 通用遍历和迁移/恢复仍拒绝链接，只有保存当前默认调试目录可略过指针。
+    assert!(archive::walk(
+        &f.home.join(".claude/debug"),
+        &f.home,
+        &mut |_, _, _| Ok(())
+    )
+    .is_err());
+    store
+        .save_current("saved", &Policy::default(), &reporter)
+        .unwrap();
+    assert!(std::fs::symlink_metadata(&latest)
+        .unwrap()
+        .file_type()
+        .is_symlink());
+    store
+        .switch("empty", "saved", &Policy::default(), &reporter)
+        .unwrap();
+    let saved = store
+        .records()
+        .into_iter()
+        .find(|record| !record.empty)
+        .unwrap();
+    assert!(!f.home.join(".claude/debug").exists());
+    store
+        .switch(&saved.id, "empty", &Policy::default(), &reporter)
+        .unwrap();
+    assert_eq!(
+        std::fs::read(f.home.join(".claude/debug/session.log")).unwrap(),
+        b"inside"
+    );
+    assert!(std::fs::symlink_metadata(&latest).is_err());
+    assert_eq!(
+        std::fs::read(f.root.join("outside.log")).unwrap(),
+        b"outside"
+    );
+
+    // 嵌套同名路径、同目录其他指针仍必须在清空前失败。
+    for relative in [
+        ".claude/debug/other",
+        ".claude/projects/fixture/.claude/debug/latest",
+    ] {
+        let path = f.home.join(relative);
+        private::directory(path.parent().unwrap()).unwrap();
+        std::os::unix::fs::symlink(f.root.join("outside.log"), &path).unwrap();
+        assert!(store
+            .switch("empty", "reject", &Policy::all(), &reporter)
+            .is_err());
+        assert_eq!(
+            std::fs::read(f.home.join(".claude/debug/session.log")).unwrap(),
+            b"inside"
+        );
+        std::fs::remove_file(path).unwrap();
+    }
+}
+
+#[test]
+fn archived_root_backups_restore_without_live_discovery_and_keep_narrow_scope() {
+    use optimization_tests::Fixture;
+    let f = Fixture::new();
+    for name in [".claude.json.backup", ".claude.json.backup.123"] {
+        f.write(name, b"backup");
+    }
+    let mut store = store::Store::open(&f.vault, &f.home).unwrap();
+    let reporter = Reporter::channel(None);
+    store
+        .switch("empty", "saved", &Policy::default(), &reporter)
+        .unwrap();
+    let saved = store
+        .records()
+        .into_iter()
+        .find(|record| !record.empty)
+        .unwrap();
+    assert!(!f.home.join(".claude.json.backup").exists());
+    store
+        .switch(&saved.id, "empty", &Policy::default(), &reporter)
+        .unwrap();
+    for name in [".claude.json.backup", ".claude.json.backup.123"] {
+        assert_eq!(std::fs::read(f.home.join(name)).unwrap(), b"backup");
+    }
+    for relative in [
+        ".claude.json.backup-other",
+        "nested/.claude.json.backup",
+        "../.claude.json.backup",
+    ] {
+        assert!(!crate::cleaner::identity::allowed(
+            &f.home,
+            &crate::cleaner::identity::Source {
+                path: f.home.join(relative),
+                category: "backups".into(),
+                keys: vec![],
+            }
+        ));
+    }
+    for (category, keys) in [("history", vec![]), ("backups", vec!["token".into()])] {
+        assert!(!crate::cleaner::identity::allowed(
+            &f.home,
+            &crate::cleaner::identity::Source {
+                path: f.home.join(".claude.json.backup.absent"),
+                category: category.into(),
+                keys,
+            }
+        ));
+    }
 }
 
 #[test]

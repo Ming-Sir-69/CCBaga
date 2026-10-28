@@ -14,13 +14,15 @@ Claude Code separates authentication from application data. Its [authentication 
 
 CCBaga archives the approved sign-in fields and selected Desktop login stores. The user's retention choices determine whether skills, plugins, MCP, settings, project state, history and caches stay in the workspace or follow the snapshot. Actual project source directories are excluded. Custom configuration directories and Console profiles outside the default directory are not automatically switched.
 
+**Keep in workspace is a retention choice, not a deletion checkbox.** When conversation history is unchecked, it moves into the encrypted saved identity; it is not deliberately discarded. To restore that history, choose the corresponding saved card and leave history unchecked so it follows the identity back into the workspace. If history was checked, it stayed shared in the workspace and was excluded from that snapshot. Deleting a saved card or using explicit permanent deletion can remove the available copy; inspect the saved cards and recovery state before any further deletion. CCBaga cannot promise recovery of data that has already been deleted.
+
 A large archive can contain conversation transcripts, images, tool results, file history and Desktop databases. These are not all authentication requirements. They remain recoverable because the user selected them for archiving. Keeping a category in the workspace avoids copying it into subsequent snapshots but also leaves that category visible there. Compression cannot guarantee a fixed size, particularly for images and compressed database content.
 
 ## One slot per recognized account
 
 The native layer matches the account UUID and organization UUID. When the account UUID is unavailable, it uses a normalized email and the organization identifier; an organization name is a conservative fallback when its UUID is missing. The matching key is an HMAC-SHA256 digest under the local vault key, not a token or raw account identifier in SQLite. Display names and refreshed access tokens are not matching keys.
 
-Saving a recognized account updates its existing slot and preserves its custom name. The current account has one current card, without another recent-use card. A manual sign-in to another account is matched against the actual local account metadata rather than the last restored slot. Unknown identities, including Desktop-only identities without a recognized Code account, are kept separate instead of being guessed or merged. This does not verify that local account metadata is current on the server.
+Saving a recognized account updates its existing slot and preserves its custom name. A newer backup replaces the slot’s previous archive generation after a verified commit; saved cards are not an unlimited history of backup versions. The current account has one current card, without another recent-use card. A manual sign-in to another account is matched against the actual local account metadata rather than the last restored slot. Unknown identities, including Desktop-only identities without a recognized Code account, are kept separate instead of being guessed or merged. This does not verify that local account metadata is current on the server.
 
 ## Safe replacement and recovery
 
@@ -33,6 +35,8 @@ New archives use [Zstandard](https://github.com/facebook/zstd) level 3 with a ch
 **Save backup / Update backup** stops recognized Claude processes after confirmation and saves the selected current state without changing workspace files, sign-in state or the active browser binding. The confirmation distinguishes data included in the encrypted backup from categories kept in the workspace. It does not automatically delete OAuth or configuration locks. Confirmed transient lock files and empty lock directories are excluded from new archives and old archive restores; nonempty same-name directories remain real data under the selected retention policy.
 
 Plan and credential badges describe bounded local metadata only. A known future expiry is shown as locally unexpired; absent or legacy expiry data remains unknown. Expired credentials with a refresh token indicate that a refresh can be attempted, not that automatic renewal or server access is assured. The UI updates when a known local expiry passes. Process previews show at most 32 detected process names/PIDs; query failure is unknown, not an empty list. Old session files are not trusted to identify live workspaces.
+
+Current snapshots skip only Claude’s default `.claude/debug/latest` generated symlink without following or archiving its target. Other selected or nested symlinks remain rejected. Root-level `.claude.json.backup` and `.claude.json.backup.*` paths stay valid backup sources when restoring after they have been moved out of the workspace.
 
 The identity stop command shares the precise process matcher with CLI maintenance without rescanning all historical files. File traversal retains ownership and link checks, checks process state periodically and forces checks at transaction boundaries. It does not remove the recovery or validation steps to improve speed.
 

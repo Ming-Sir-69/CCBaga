@@ -1,9 +1,9 @@
 # CCBaga - CCBaga-A（宿主，橙底清理员 A）与 CCBaga-B（指纹 Chromium，橙底浏览器 B）
 安装为 /Applications/CCBaga-A.app（ai.local.requirement-french）与 /Applications/CCBaga-B.app（ai.local.requirement-french.browser）；稳定包标识与独立资料目录保护钥匙串、设置和浏览器资料。
-Tauri 2.12.1 + Rust + macOS AppKit/UniformTypeIdentifiers/Accessibility/Security/CoreLocation + SHA-256 + React 19.3.0 + TypeScript 5.9.3 + Cromma UI 本地副本 + Radix UI 1.6.7 + Tailwind CSS 4.3.3 + Motion 14.0.0 + Vite 7.3.6 + YAML 2.9.1（仅构建）
+Tauri 2.12.2 + Rust + macOS AppKit/UniformTypeIdentifiers/Accessibility/Security/CoreLocation + SHA-256 + React 19.3.0 + TypeScript 5.9.3 + Cromma UI 本地副本 + Radix UI 1.6.7 + Tailwind CSS 4.3.3 + Motion 14.0.0 + Vite 7.3.7 + YAML 2.9.1（仅构建）
 
 <directory>
-.github/ - PR 的 Ubuntu/macOS/Windows 无凭据回归、release 分支自动测试、公证与发布工作流，以及依赖更新；见其 CLAUDE.md
+.github/ - PR 的 Ubuntu/macOS/Windows 无凭据回归、独立依赖安全扫描、release 分支自动测试、公证与发布工作流，以及依赖更新；见其 CLAUDE.md
 src/ - 黑色主题的 Laper 最新 Landing 斜纹/点阵/细线内容壳、Cromma UI 极简侧栏导航与右侧傻瓜设置（国家地区选择和四个快捷按钮）、Claude 身份竖式立体工牌（白底空身份始终最左、当前账号其次、顶部挂孔绿光表示当前身份、弹簧横滚/视差与卡片直接切换）与 CLI 卸载/重装、浏览器核验、电脑设置与网络环境（三步固定资源入口、五项 AI 图标分段、问号服务规格与双语安装/运行提示词）及 YAML 中英文切换与只读编号帮助页（账号说明原生折叠）；见其 CLAUDE.md
 src-tauri/ - 白名单身份暂存/切换、Claude Code CLI 安装管理、独立指纹浏览器、国家地区目录、电脑环境设置与固定网络资源导航；见其 CLAUDE.md
 browser-runtime/ - 固定摘要的独立 Fingerprint Chromium 引擎与保留 Framework 链接的打包归档；见其 CLAUDE.md
@@ -13,7 +13,7 @@ skills/ - Agent Skills 标准目录与 npm/npx 通用安装，MIT/兼容声明�
 packaging/ - 社区 Linux 构建配方；见其 CLAUDE.md
 assets/ - 两张压缩品牌图、五项 LobeHub AI SVG 与极客像素安装盘背景，分别供图标/README 和 DMG 布局使用；见其 CLAUDE.md
 docs/ - 英文仓库封面、操作速查、身份存储/迁移/性能边界与 Linux/Windows 开发说明；见其 CLAUDE.md
-vendor/ - cromma-web 同款组件库副本，主题、原语与 Pika 图标自包含；见其 CLAUDE.md
+vendor/ - cromma-web 同款组件库与 GLib 0.18.5 的官方迭代器安全回补，前端组件自包含，原生补丁逐字来源可核验；见其 CLAUDE.md
 </directory>
 <config>
 package.json - 前端构建、身份 UI 模拟、Tauri 应用打包与 dev:install 本机快速重装入口
@@ -34,7 +34,7 @@ NOTICE.md - 第三方引擎、组件与图标的授权边界
 身份契约：默认范围同时覆盖 Claude Code 与 Claude Desktop；用户逐类选择保留在工作区或随身份暂存。登录/本地标识始终随身份；Skills、插件、MCP、个人设置、项目记录、会话历史和缓存分别选择，实际项目源码不扫描。空身份是把已选择的当前状态从 Claude 默认工作目录移开，保存可恢复身份后留出空工作区，不宣称抹除服务端记录或对同用户程序隐身。
 身份显示：只读默认 .claude.json 与本地凭据元数据中的 displayName/emailAddress/organizationName、订阅档位（Pro/Max 5x/Max 20x/Team/Enterprise/API）与本地凭据元数据状态（本地未过期/可尝试续期/本地已到期/API 密钥/未知）白名单；UI 不接收令牌；普通刷新只读目录与元数据，不解密归档回填摘要，不自动删除不同账号的Desktop资料或回收进行中的暂存目录。Desktop 仅元数据候选检测，未知或不可读账号明确标注，不宣称当前账号已通过服务端验证。
 保险库：app_data_dir/identity-vault 与 Claude 工作目录分离；bundled SQLite 保存名称、策略、归档代次/大小/时间、脱敏身份摘要（identity_summaries）、本机 HMAC 账号索引与恢复日志，不保存凭据正文；FULL 同步、数据库事务。BAGAID01 容器用 tar/Zstandard 压缩（旧 tar/gzip 只读兼容）、ring AES-256-GCM 认证帧和独立归档密钥，保险库主密钥只在受保护本机 key.bin 中；POSIX 0700/0600、Windows 创建时明确用户所有者/独占 DACL。普通解压工具不能直接读取，但本机同用户/管理员不是绝对隔离边界；Windows所有权只接受TokenUser和实际TokenOwner，不泛化信任管理员组。
-切换与原地备份：同一 Code 账号 UUID/组织（缺失时邮箱/组织）更新同一槽位；名称和令牌刷新不生成新卡片。当前账号只显示当前卡片，无最近使用副本；支持在不退出当前工作区与关联浏览器的前提下将当前身份原地加密写入保险库（保存备份/更新备份）。切换的不可变归档代次完整验证后，与恢复标记一起更新 SQLite 指针，提交后回收旧代次；原地备份仅事务提交档案/名称/摘要，不改 active/browser 选择或启动参数；普通刷新不打开 Store 或解密整个归档列表，旧摘要缺期限保持未知，本地未过期不等于服务端有效；未知账号不猜测合并，恢复前检查点独立保存。切换或备份前最多预览 32 项真实进程名称/PID，查询失败保持未知，不读取旧 sessions JSON 猜工作区；用户确认后结束精确匹配进程，不隐式删除锁；新快照/旧档案恢复排除确认的普通瞬态锁和空锁目录，非空同名目录按保留策略处理；完整读取与归档验收成功后才改工作区。SQLite 与文件系统通过持久恢复状态协调；失败回滚，崩溃可恢复，恢复前也存下现状。复用所有权、链接、元数据快照和白名单检查；只合并所选 JSON 键，保留其他项目/MCP/设置。macOS 用户确认后在原生层保存默认 Code/Desktop 钥匙串正文，不经 UI、argv 或网络；不自动修改其他配置目录的账号。Linux/Windows 使用文件凭据；真实登录可能因服务端失效而需重新授权。
+切换与原地备份：同一 Code 账号 UUID/组织（缺失时邮箱/组织）更新同一槽位；名称和令牌刷新不生成新卡片。当前账号只显示当前卡片，无最近使用副本；支持在不退出当前工作区与关联浏览器的前提下将当前身份原地加密写入保险库（保存备份/更新备份）。切换的不可变归档代次完整验证后，与恢复标记一起更新 SQLite 指针，提交后回收旧代次；原地备份仅事务提交档案/名称/摘要，不改 active/browser 选择或启动参数；普通刷新不打开 Store 或解密整个归档列表，旧摘要缺期限保持未知，本地未过期不等于服务端有效；未知账号不猜测合并，恢复前检查点独立保存。切换或备份前最多预览 32 项真实进程名称/PID，查询失败保持未知，不读取旧 sessions JSON 猜工作区；用户确认后结束精确匹配进程，不隐式删除锁；当前快照仅略过默认 .claude/debug/latest 生成链接且不跟随；通用归档/迁移仍拒绝链接，根目录 Claude 配置备份的恢复许可独立于当前磁盘存在性。新快照/旧档案恢复排除确认的普通瞬态锁和空锁目录，非空同名目录按保留策略处理；完整读取与归档验收成功后才改工作区。SQLite 与文件系统通过持久恢复状态协调；失败回滚，崩溃可恢复，恢复前也存下现状。复用所有权、链接、元数据快照和白名单检查；只合并所选 JSON 键，保留其他项目/MCP/设置。macOS 用户确认后在原生层保存默认 Code/Desktop 钥匙串正文，不经 UI、argv 或网络；不自动修改其他配置目录的账号。Linux/Windows 使用文件凭据；真实登录可能因服务端失效而需重新授权。
 直接删除：AlertDialog 警告默认聚焦取消，提示不可撤销/不新增备份，用户勾选并独立确认后按保留策略移除当前本地身份，不创建新归档；已有暂存身份不受影响。删除暂存卡片仅移除选定加密文件与 SQLite 记录，双资源失败留下可回收标记；不把普通文件删除宣称为物理安全擦除。
 文件残留：身份页提供用户触发的默认 Claude 路径检查，列出完整元数据、文件路径和窄 JSON 字段；默认仅选择完整缓存，登录/历史/旧备份需另选。明确警告并勾选确认后结束 Claude，按原生快照编号校验和清理，成功/失败均复查；不访问钥匙串，不修改个人设置、Skills、保险库、浏览器资料或通用终端/代理配置。未完成身份恢复时阻止清理，扫描失败不保留可执行旧预览；非空或未知锁目录仅警告保留，不生成删除快照，扫描后内容改变则拒绝执行。
 实时呈现：身份转换、空身份、直接删除与残留清理共用卡片正下方的事件驱动阶段动画，后端完成哪一步才标记哪一步；只显示当前阶段真实 n/N，不将归档写入完成当作整个切换完成，未知总量不显示百分比。回滚、部分失败和浏览器重开警告保留真实后果；减弱动态偏好下停止脉冲。
@@ -44,7 +44,7 @@ CLI 管理：Claude 身份页提供一键卸载/重装，确认后结束全部�
 发布权限：官方版本仅由仓库所有者 liseami 发布，CI 同时核对仓库、触发者与重跑者；PR/main 检查不接触签名凭据。README 不承载发布、公证操作文章。
 发布契约：开发构建默认临时签名；release-macos.py 使用外部环境变量指定 Developer ID 和 Apple API key，先公证装订浏览器，再将其归档嵌入宿主，最后公证宿主与双应用 DMG。单个 DMG 同时交付两个应用；每次品牌化都明确设置浏览器 Bundle ID（不能依赖本机旧引擎）；安装盘验收核对双应用名称/标识/入口。哈希锁定的 dmgbuild 只用于发布，写入像素背景与固定拖拽布局，不依赖 Finder GUI。必须取得 Accepted、装订票据并通过 Gatekeeper；不以移除隔离属性替代验收。装订后的 A 由官方 CLI 生成带版本签名的 .app.tar.gz 与公开 latest.json；仅公钥进入应用，原生 updater 强制验证版本，安装后重启，B 继续使用完整 DMG。CI 只缓存 Rust 依赖；PR 检查仅恢复主干缓存，仅成功的 main 检查和 release 构建保存完整依赖集，避免分支缓存挤占和失败半成品固化；签名私钥不传给构建子进程。密钥和发布产物不入 Git。
 交付流程：视觉验收由项目所有者完成；获得发布授权后，同步推送 main 与 release 的同一已验收提交，release 触发递增版本和 tag；公开产物验收成功后核对两分支一致，再回复并关闭相关 issue，避免提交中的关闭关键字提前结束问题。版本说明描述当前产品与安装方式。所有平台构建、载荷、签名更新清单和公开下载验收成功后完成交付；历史 Release 与 tag 默认全部保留，方便回退和对比，失败时保留当前可用版本。源码安装与引擎替换：可捕获的取消包含在回滚范围内，目录实际移动后发生异常也按磁盘状态恢复；双重失败保留并报告恢复目录。Mac/Linux 安装前、三平台正式载荷与构建 CI 共用页面实际资源引用检查，不用任意 JS 存在替代完整性。此契约不宣称断电/强制结束的崩溃原子性或并发安装安全。本机开发使用 bun run dev:install：debug/custom-protocol 内嵌 UI、临时签名、双应用事务重装到 /Applications 并启动/激活；开发模式拒绝外部安装盘，只允许临时签名包。正式交付使用 Developer ID、公证/Gatekeeper 和双应用 DMG，公开安装包保持强验收。
-安全契约：src-tauri/SECURITY.md 描述数据流、外部连接与已确认上游依赖风险；进程参数只在原生层识别，Machine.system_proxy 禁止序列化；宿主无用户信息上传服务；验证未覆盖的第三方、桌面或远程行为不得宣称通过。
+安全契约：src-tauri/SECURITY.md 描述数据流、外部连接与已确认上游依赖风险；TLS/证书/更新器 ZIP 与 Zstandard 使用已审安全补丁版本；GTK3 的 glib 0.18.5 使用本地原包与官方两行出参修复，逐文件摘要和真实优化迭代器测试约束，不能以版本伪装或忽略公告代替修复；进程参数只在原生层识别，Machine.system_proxy 禁止序列化；宿主无用户信息上传服务；验证未覆盖的第三方、桌面或远程行为不得宣称通过。
 Linux x86_64 适配：见 docs/linux.md；平台配置拆分为 tauri.macos.conf.json / tauri.linux.conf.json。Linux 原生边界位于 src-tauri/src/linux.rs，浏览器使用带哈希固定的 LinuxBrowser 与 XDG 启动项；标准 Linux 包在 Ubuntu 22.04 构建并逐个检查实际 ELF 的 glibc 2.35 上限，Arch 保持独立当前发行版；版本任务后并行构建 macOS/Ubuntu/Arch；DEB/RPM/AppImage 引擎隔离在 libexec，避免宿主打包工具改写；Linux 实际安装包均解包核验，四格式与 macOS 同批验收后由所有者统一发布，Linux 不接触 Apple/更新私钥。
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 

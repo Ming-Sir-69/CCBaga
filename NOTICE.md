@@ -1,5 +1,5 @@
 <!--
-[INPUT]: 原创项目 MIT 授权、现有 Chromium 许可与本地 UI 与 AI SVG 来源记录。
+[INPUT]: 原创项目 MIT 授权、现有 Chromium/GLib 许可与本地 UI 与 AI SVG 来源记录。
 [OUTPUT]: 英文第三方归属和分发边界；未发现的许可不推断为 MIT。
 [POS]: LICENSE 的第三方补充说明，供 README 和发布包引用。
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -17,6 +17,10 @@ The browser bundle contains Chromium and additional dependencies with their own 
 ## Vendored interface
 
 `vendor/cromma-ui` is a local copy of Cromma UI, including its Pika icon subset. The copied tree does not currently contain an independent upstream license notice. Confirm its redistribution terms and restore any required notices before publishing these components. The top-level MIT declaration is not evidence of permission from other copyright holders.
+
+## GLib GTK3 compatibility backport
+
+`vendor/glib` retains the complete crates.io `glib 0.18.5` source distribution and its [MIT license](vendor/glib/LICENSE). The only code change is the official [VariantStrIter mutability fix](https://github.com/gtk-rs/gtk-rs-core/commit/b5a4071e439bef2b5eea76c3aa25e5ae84839e34). The package version is unchanged; `UPSTREAM.json` and the backport regression record its exact source and allowed differences. Linux binaries include this license in their resources.
 
 ## AI tool icons
 

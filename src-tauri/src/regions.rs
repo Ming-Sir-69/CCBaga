@@ -143,6 +143,7 @@ mod tests {
             assert_eq!(locale_country(locale).as_deref(), Some("TW"), "{locale}");
         }
         assert_eq!(locale_country("en_US.UTF-8").as_deref(), Some("US"));
+        assert_eq!(locale_country("de_DE.UTF-8@euro").as_deref(), Some("DE"));
         assert_eq!(locale_country("zh_Hant_HK").as_deref(), Some("HK"));
         for locale in [
             "zh-Hans",
@@ -150,6 +151,8 @@ mod tests {
             "C",
             "",
             "zh_CN@rg=invalid",
+            "zh_CN.UTF-8@rg=invalid",
+            "C.UTF-8",
             "zh-CN-u-rg-invalid",
             "zh-CN-u-rg",
             "@rg=twzzzz",

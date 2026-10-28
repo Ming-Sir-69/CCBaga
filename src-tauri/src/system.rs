@@ -1,5 +1,5 @@
 // [INPUT]: macOS/Linux/Windows 电脑设置桥与 Tauri 后台任务。
-// [OUTPUT]: 电脑状态查询、时区与语言应用、定位关闭和系统设置入口。
+// [OUTPUT]: 电脑状态查询、macOS 地区只读预检、时区与语言应用、定位关闭和系统设置入口。
 // [POS]: 独立于清理的命令边界；所有成功状态来自原生核验。
 // [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 #[cfg(target_os = "linux")]
@@ -12,6 +12,7 @@ use std::ffi::c_char;
 use std::ffi::CString;
 #[cfg(target_os = "macos")]
 extern "C" {
+    fn rf_system_region_validate(language: *const c_char, locale: *const c_char) -> *mut c_char;
     fn rf_system_region(language: *const c_char, locale: *const c_char) -> *mut c_char;
     fn rf_system_read() -> *mut c_char;
     fn rf_system_open(pane: *const c_char) -> *mut c_char;
@@ -62,6 +63,19 @@ pub async fn system_disable_location() -> Result<serde_json::Value, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn catalog_regions_pass_native_read_only_preflight() {
+        for region in crate::regions::get_regions() {
+            let language = CString::new(region.language).unwrap();
+            let locale = CString::new(region.locale).unwrap();
+            let result: serde_json::Value = decode(unsafe {
+                rf_system_region_validate(language.as_ptr(), locale.as_ptr())
+            })
+            .unwrap_or_else(|error| panic!("{}: {error}", region.id));
+            assert_eq!(result["ok"], true, "{}", region.id);
+        }
+    }
     #[test]
     fn reads_native_state_and_rejects_invalid_inputs_without_mutation() {
         let state: serde_json::Value = decode(unsafe { rf_system_read() }).unwrap();
@@ -87,6 +101,9 @@ pub async fn system_set_region(region: String) -> Result<serde_json::Value, Stri
         let zone = CString::new(region.timezone).unwrap();
         let language = CString::new(region.language).unwrap();
         let locale = CString::new(region.locale).unwrap();
+        #[cfg(target_os = "macos")]
+        let _: serde_json::Value =
+            decode(unsafe { rf_system_region_validate(language.as_ptr(), locale.as_ptr()) })?;
         #[cfg(target_os = "linux")]
         let _: serde_json::Value =
             decode(unsafe { rf_system_region(language.as_ptr(), locale.as_ptr()) })?;

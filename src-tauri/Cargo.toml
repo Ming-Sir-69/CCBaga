@@ -1,3 +1,7 @@
+# [INPUT]: 固定的原生依赖、平台 Win32 能力与可追溯 GLib 兼容回补。
+# [OUTPUT]: 宿主构建/测试依赖图与发布优化配置，实际版本由 Cargo.lock 锁定。
+# [POS]: src-tauri 的构建入口；对话框/更新器保留原生权限边界。
+# [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 [package]
 name = "requirement-french"
 version = "0.2.0"
@@ -13,22 +17,22 @@ tauri-build = { version = "2", features = [] }
 cc = "1"
 
 [dependencies]
-tauri = { version = "2", features = ["tray-icon"] }
+tauri = { version = "2.12.2", features = ["tray-icon"] }
 tauri-plugin-single-instance = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.11"
 reqwest = { version = "0.13", default-features = false, features = ["rustls", "json", "socks"] }
 tokio = { version = "1", features = ["sync"] }
-tauri-plugin-updater = "2"
+tauri-plugin-updater = "2.14.1"
 tauri-plugin-process = "2"
 tauri-plugin-dialog = "=2.8.3"
 flate2 = "1.1.10"
-zstd = { version = "0.14.2", default-features = false }
+zstd = { version = "0.14.3", default-features = false }
 tar = "0.4.46"
 ring = "0.17.14"
 zeroize = "1.9.0"
-base64 = "0.22.1"
+base64 = "0.23.1"
 rusqlite = { version = "0.40.2", features = ["bundled"] }
 
 [target.'cfg(windows)'.dependencies]
@@ -54,10 +58,14 @@ windows-sys = { version = "0.61", features = [
 ] }
 
 [dev-dependencies]
-tauri = { version = "2", features = ["test"] }
+tauri = { version = "2.12.2", features = ["test"] }
 
 [profile.release]
 opt-level = "s"
 lto = true
 codegen-units = 1
 strip = true
+
+# GTK3 仍要求 glib 0.18；仅回补官方迭代器安全修复，来源由独立回归锁定。
+[patch.crates-io]
+glib = { path = "../vendor/glib" }

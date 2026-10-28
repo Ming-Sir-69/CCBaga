@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 隔离 Playwright、真实身份页与可延期 IPC/官方 Channel 回调样本。
- * [OUTPUT]: 卡片下方真实事件进度、未知总量、稳定阶段百分比、空/暂存身份和清理复查/失败 DOM 验收。
+ * [OUTPUT]: 卡片下方真实事件进度、未知总量、稳定阶段百分比、失败去重与回滚原因保留的 DOM 验收。
  * [POS]: 身份操作动画的数据来源证明；测试显式释放事件，不造时间进度、不截图或调用原生。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -103,12 +103,33 @@ export async function testIdentityOperation(browser:Browser,base:string) {
   await operation.getByText('fixture rollback restoring current files').first().waitFor();
   assert.notEqual(await operation.getAttribute('data-status'),'ok');
   assert.equal(await bar.getAttribute('aria-valuenow'),null);
+  // mock 拒绝使用 Error，String(error) 含前缀；通道与最终拒绝使用同一完整消息。
+  await emit(page,'identities_switch',{stage:'rollback',status:'error',message:'Error: fixture rollback completed after archive failure'});
   await release(page,'identities_switch','fixture rollback completed after archive failure');
   await operation.getByText('fixture rollback completed after archive failure').first().waitFor();
   assert.equal(await operation.getAttribute('data-status'),'error');
   assert.equal(await operation.locator('.identity-operation-step[data-status="error"]').count()>0,true);
   assert.equal(await operation.locator('.activity-result-symbol').evaluate(node=>getComputedStyle(node).color),'rgb(172, 48, 37)');
   assert.equal(await page.evaluate(()=>(window as any).identityFixture.state.current.present),true);checks++;
+  await operation.getByRole('button',{name:/展开日志/}).click();
+  assert.equal(await operation.locator('.activity-log .log-error').filter({hasText:'fixture rollback completed after archive failure'}).count(),1);
+  assert.equal(await operation.locator('.activity-log .log-error').filter({hasText:'fixture archive verification failed'}).count(),1);checks++;
+
+  // ----- 拒绝先抵达、相同通道错误后抵达时也只留一条，保留原生阶段 -----
+  await page.evaluate(()=>(window as any).identityFixture.defer('identities_switch'));
+  await page.getByRole('button',{name:'使用空身份',exact:true}).click();
+  await page.getByRole('dialog').getByRole('button',{name:'确认暂存并切换',exact:true}).click();
+  await pending(page,'identities_switch');
+  const callback=await page.evaluate(()=>{
+   const channel=(window as any).identityFixture.commands.filter((row:any)=>row.command==='identities_switch').at(-1).args.onProgress;
+   return typeof channel==='string'?Number(channel.replace('__CHANNEL__:','')):channel.id;
+  });
+  await release(page,'identities_switch','fixture late terminal error');
+  await page.waitForFunction(()=>document.querySelector('.identity-operation')?.getAttribute('data-status')==='error');
+  await page.evaluate(callback=>(window as any).__TAURI_INTERNALS__.runCallback(callback,{index:0,message:{stage:'archive',status:'error',message:'Error: fixture late terminal error',current:0,total:null,elapsed_ms:1}}),callback);
+  await operation.locator('.identity-operation-step[data-stage="archive"][data-status="error"]').waitFor();
+  await operation.getByRole('button',{name:/展开日志/}).click();
+  assert.equal(await operation.locator('.activity-log .log-error').filter({hasText:'fixture late terminal error'}).count(),1);checks++;
   assert.deepEqual(errors,[]);
   return checks;
  } finally {await context.close();}

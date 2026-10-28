@@ -15,7 +15,7 @@ test-browser-verification.ts: 顶部身份卡顺序、双语与不匹配/空身�
 test-identities-ui.ts: 默认勾选、关闭确认/取消与恢复联动； Node.js 标准管道 + 固定引擎 + playwright-core 的隔离 DOM 模拟；40 个虚构账号验证当前槽位去重/无最近使用卡片、竖式工牌、弹簧/视差、Alert 安全默认、双语、保留选择与切换/删除/失败/恢复，临时 HOME/XDG，不调用真实 IPC、不截图或外连。
 test-claude-residue.ts: 复用身份页内存 IPC 验证显式扫描、仅精确缓存默认选择、不完整项禁选、JSON 键提示、不可逆确认默认取消、精确 ID 提交、部分失败和停止失败后的重扫读回、旧计划失效与英文确认；不触碰本机文件或钥匙串。
 test-identity-transfer.ts: 临时身份迁移 DOM 回归，选择取消、密码边界/清空、真实进度与失败后重选票据/重选和取消清除可信确认/提交后状态失败读回、导入不切换、双语和本地期限到期/进程未知显示；无真实文件。
-test-identity-operation.ts: 通过延期 IPC 和官方 Channel 回调验证工牌下方共享进度；未知总量不制造百分比，实际 1/4 事件显示且停留 25%，空身份/暂存身份/清理复查走同一进度，失败与回滚保留真实状态；不截图或触碰本机资料。
+test-identity-operation.ts: 同文终止错误只记录一次，异文归档/回滚原因保留；通过延期 IPC 和官方 Channel 回调验证工牌下方共享进度；未知总量不制造百分比，实际 1/4 事件显示且停留 25%，空身份/暂存身份/清理复查走同一进度，失败与回滚保留真实状态；不截图或触碰本机资料。
 test-windows.py: 子进程大小写无关地清除继承 PSModulePath，90 秒冷启动预算/逐项日志保留安全断言；Windows 原生/npm/WinGet 程序隔离样本的卸载重装、PATH外全局npm启动器识别；离线原生安装器字节/文本响应、安装/版本失败恢复哈希、junction 阻断回滚保留备份、下载/解析失败保留旧程序、安装失败不报告成功与自定义启动器拒绝；CI 实际语言/区域写入、输入法保留和完整还原。
 fetch-browser.py: 固定上游引擎与 SHA-256，核验版本/架构；在目标旁完整复制后公开三平台引擎，失败清理暂存目录，清理失败报告路径；干净 CI 检出不依赖维护者本机引擎。
 test-fetch-browser.py: 三平台真实临时文件树与显式下载/摘要/平台工具替身，回归复制失败后可重试、完整资源/权限/链接、既有引擎不变与清理失败路径；不下载或运行真实引擎。
@@ -47,4 +47,5 @@ package-linux-browser.py: 旧目录移动与新目录提交共处取消/回滚�
 test-package-linux-browser.py: 四种目录移动取消恢复及取消后恢复失败保留备份；真实打包入口的首次/重建、版本/执行权限前置检查、复制/提交回滚及双重失败备份保留回归；临时样本不安装引擎，非 Linux 仅替换 uname 选择 Linux 分支。
 test-browser-cleanup.ts: 复用身份测试入口的 browser 模式，验证无缓存全清理、默认取消/强制勾选、精确删除参数、任务锁/真实 Channel 进度、失败与双语；仅内存 IPC，无原生或真实用户资料。
 test-browser-profiles.ts: 固定引擎的真实持久资料隔离回归；虚构 Cookie/LocalStorage 的 A/B 隔离、重开恢复和空资料，仅临时 HOME/本机页面。
+test-glib-backport.py: 核对 crates.io 源包逐文件摘要与官方两行 VariantStrIter 回补；--native 使用真实 GLib 执行优化构建的上游迭代器回归，不伪造版本或忽略公告。
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
