@@ -1,5 +1,5 @@
 <!--
-[INPUT]: Linux/Windows 原生边界、共用清理/浏览器/CLI 实现、独立网络 Skill、回归测试与上游安全公告。
+[INPUT]: Linux/Windows 原生边界、共用清理/浏览器/CLI 实现、独立网络 Skill、固定第三方引擎来源、回归测试与上游安全公告。
 [OUTPUT]: 数据读写、外部连接、操作授权、验证范围与已确认依赖风险的当前安全契约。
 [POS]: 原生模块的安全地图；与 src/CLAUDE.md 的事务边界共同维护。
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -58,6 +58,12 @@ Linux 的 Tauri/Wry/GTK3 依赖链仍要求 `glib ^0.18`。原版 `glib 0.18.5` 
 本轮完整 Cargo 锁扫描还更新了 `rustls 0.23.46`、`rustls-webpki 0.103.16`、`webpki-root-certs 1.0.10`、前后端 `tauri-plugin-updater 2.14.1`、`zip 9.1.3` 与 `zstd 0.14.3`，处理 TLS 秘密输出/握手/证书信任、ZIP 解包与压缩流复用公告。ZIP 按官方实际修复范围选用安全版本，不仅依赖公告数据库较宽的版本判断。2026-10-27 的官方 RustSec 数据库提交 `99670cfc0bc574433034b75876a4b791ccaa2efb` 扫描此锁文件为 0 条漏洞；Vite 7.3.7 后的 Bun 扫描同样为 0。该结果只针对当时数据库和当前锁定源码，不是未来不会出现漏洞的保证。
 
 同一既有 GTK 构建链的 `proc-macro-error 1.0.4` 命中 [RUSTSEC-2024-0370](https://rustsec.org/advisories/RUSTSEC-2024-0370.html) 的停止维护提示；另有 `zbus_names 4.3.4`、`zvariant 5.15.0` 和 `zvariant_derive 5.15.0` 的停止维护提示。它们是维护风险，不应冒充已确认的运行时漏洞或恶意代码。依赖扫描无新增公告不等于整库没有风险，功能测试通过也不替代安全审查。
+
+## 第三方浏览器补丁覆盖未验证
+
+固定 Fingerprint Chromium `148.0.7778.215` 的 SHA-256 验收仅证明来源字节一致，不能证明 Chromium 安全补丁齐全。[Google Chrome CNA 的 CVE-2026-10881 原始记录](https://raw.githubusercontent.com/CVEProject/cvelistV5/main/cves/2026/10xxx/CVE-2026-10881.json) 将 Chrome `<149.0.7827.53` 列为 ANGLE 越界读写/潜在沙箱逃逸的受影响范围；固定引擎的 Chrome 基线落在该范围。尚未取得该 Fingerprint 二进制与具体修复提交的可复现映射，因此本审计将其标记为“fork 回补覆盖未验证”，不直接断言 fork 已修复或未修复。
+
+2026-10-27 核对[上游实际最新发行资产](https://github.com/adryfish/fingerprint-chromium/releases/latest)：`150.0.7871.186` 提供 Windows/Linux 资产，未提供对应 macOS 资产；上游还说明该版补丁源码延迟公开。没有可直接认定为已完成三平台兼容与安全验收的替换输入。本轮没有下载未经同等核验的新引擎，也没有关闭沙箱、TLS 或平台保护来绕过差异。后续替换必须核对实际源码/补丁、三个平台的完整 A+B 功能和安装/更新边界；应用依赖扫描零漏洞不代表这个第三方浏览器已经通过独立漏洞审计。
 
 ## 本地身份保险库
 
