@@ -45,6 +45,16 @@ int main(int argc, char **argv) {
         CHECK(profileArgument(@[@"--user-data-dir=/a"]) == nil);
         CHECK(profileArgument(@[]) == nil);
 
+        CHECK(normalBraveArguments(@[@"Brave Browser"]));
+        CHECK(normalBraveArguments(@[@"Brave Browser", @"https://example.org/"]));
+        CHECK(!normalBraveArguments(nil));
+        CHECK(!normalBraveArguments(@[]));
+        CHECK(!normalBraveArguments(@[@"Brave Browser", @"--user-data-dir=/a"]));
+        CHECK(!normalBraveArguments(@[@"Brave Browser", @"--user-data-dir", @"/a"]));
+        CHECK(!normalBraveArguments(@[@"Brave Browser", @"--user-data-dir="]));
+        CHECK(!normalBraveArguments(@[@"Brave Browser", @"--user-data-dir"]));
+        CHECK(!normalBraveArguments(@[@"Brave Browser", @"-user-data-dir=/a"]));
+
         // ----- 同一目录的别名由设备/inode 识别 -----
         CHECK(owner(profile, profile) == ProfileOwnershipOwned);
         CHECK(owner([profile stringByAppendingString:@"/"], profile) == ProfileOwnershipOwned);

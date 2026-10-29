@@ -1,5 +1,5 @@
 // [INPUT]: 显式环境编号、受限配置、本机引擎及资料占用核验；不读取 Claude 身份。
-// [OUTPUT]: 可命名长期环境、原生启动/恢复与已有窗口激活、并行和一次性清理；窗口/后台/残留状态及确认退出后清理，不注入说明页或冒用实测结果。
+// [OUTPUT]: 日常 Brave 无参数入口、外部 Brave 仅登记引用（删除不触碰外部资料）； 可命名长期环境、原生启动/恢复与已有窗口激活、并行和一次性清理；窗口/后台/残留状态及确认退出后清理，不注入说明页或冒用实测结果。
 // [POS]: 独立环境边界，不改身份选择、全局启动参数、实测报告、网络或默认浏览器。
 // [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 use super::*;
@@ -41,6 +41,8 @@ struct Environment {
     config: Config,
     #[serde(default)]
     browser: BrowserKind,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    external_profile: Option<PathBuf>,
 }
 
 #[derive(Serialize)]
@@ -56,6 +58,9 @@ pub struct EnvironmentSummary {
     error: Option<String>,
     config: Config,
     brave: bool,
+    external_profile: Option<PathBuf>,
+    daily: bool,
+    source: &'static str,
 }
 
 #[derive(Serialize)]
@@ -113,7 +118,7 @@ pub(crate) fn integration_inventory(app: &tauri::AppHandle) -> Result<serde_json
     let (items, issues) = inventory(&path)?;
     Ok(serde_json::json!({"root":path,"environments":items.iter().map(|item| serde_json::json!({
         "id":item.id,"name":item.name,"format":item.format,"browser":item.browser,
-        "profile":path.join(&item.id).join("profile")
+        "profile":item.external_profile.clone().unwrap_or_else(||path.join(&item.id).join("profile")),"external":item.external_profile.is_some()
     })).collect::<Vec<_>>(),"issue_count":issues.len(),"profile_copy_or_move":false}))
 }
 
@@ -151,6 +156,10 @@ fn load(root: &Path, id: &str) -> Result<Environment, String> {
     {
         return Err("独立环境配置无效，未修改资料。".into());
     }
+    if value.external_profile.is_some() && (value.browser != BrowserKind::Brave || value.temporary || value.cleanup_pending || value.launched_at.is_some()) {
+        return Err("外部引用不能使用一次性或自动清理状态。".into());
+    }
+    if let Some(path) = &value.external_profile { external_path_shape(path)?; }
     config::proxy(&value.config.proxy)?;
     Ok(value)
 }
@@ -199,6 +208,11 @@ fn create(
     config: Option<Config>,
     machine: &Machine,
 ) -> Result<Environment, String> {
+    create_registered(root, label, temporary, config, machine, None)
+}
+
+fn create_registered(root: &Path, label: &str, temporary: bool, config: Option<Config>, machine: &Machine, external: Option<&Path>) -> Result<Environment, String> {
+    if external.is_some() && temporary { return Err("外部引用不能使用一次性或自动清理状态。".into()); }
     let name = name(label)?;
     let used: HashSet<u32> = list(root)?.iter().map(|e| e.config.seed).collect();
     let config = match config {
@@ -230,7 +244,8 @@ fn create(
         cleanup_pending: false,
         launched_at: None,
         config,
-        browser: BrowserKind::Fingerprint,
+        browser: if external.is_some() { BrowserKind::Brave } else { BrowserKind::Fingerprint },
+        external_profile: external.map(Path::to_path_buf),
     };
     if let Err(error) = save(root, &value) {
         let _ = fs::remove_dir(&dir);
@@ -253,6 +268,76 @@ fn validate_brave_profile(path: &Path) -> Result<(), String> {
         return Err("请选择包含 Default 与 Local State 的 Brave 资料目录。".into());
     }
     Ok(())
+}
+
+// External profiles are never owned by this catalog. Only ordinary absolute, canonical paths
+// are registered; metadata checks do not read Local State, Preferences or credentials.
+fn external_path_shape(path: &Path) -> Result<(), String> {
+    if !path.is_absolute() || path.components().any(|c| matches!(c, std::path::Component::ParentDir | std::path::Component::CurDir)) {
+        return Err("外部资料目录必须是规范绝对路径。".into());
+    }
+    Ok(())
+}
+
+fn environment_profile(root: &Path, item: &Environment) -> Result<PathBuf, String> {
+    match &item.external_profile {
+        Some(path) => { validate_brave_profile(path)?; Ok(path.clone()) },
+        None => Ok(directory(root, &item.id)?.join("profile")),
+    }
+}
+
+fn register_external(root: &Path, label: &str, path: &Path, daily: &Path) -> Result<Environment, String> {
+    external_path_shape(path)?;
+    validate_brave_profile(path)?;
+    if fs::canonicalize(path).map_err(|_| "无法核验外部目录。")? != path || path == daily || path.starts_with(root) {
+        return Err("不能重复引用日常浏览器、托管资料或路径别名。".into());
+    }
+    let (items, issues) = inventory(root)?;
+    if !issues.is_empty() { return Err("先处理损坏的登记，避免重复引用。".into()); }
+    for item in &items {
+        let existing = item.external_profile.clone().unwrap_or(directory(root, &item.id)?.join("profile"));
+        if existing == path || fs::canonicalize(&existing).ok().as_deref() == Some(path) {
+            return Err("该资料目录已经登记。".into());
+        }
+    }
+    // Write the complete external manifest once, atomically. No intermediate owned/fingerprint
+    // entry may remain launchable if persistence fails.
+    create_registered(root, label, false, None, &config::machine()?, Some(path))
+}
+
+fn daily_profile(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    Ok(app.path().home_dir().map_err(|_| "用户目录不可用。")?.join("Library/Application Support/BraveSoftware/Brave-Browser"))
+}
+
+fn require_mutable_target(id: &str) -> Result<(), String> {
+    if id == "daily" { return Err("日常 Brave 不提供关闭、清理、删除或配置修改。".into()); }
+    Ok(())
+}
+
+fn daily_launch_arguments() -> Vec<&'static str> { vec!["-a", "/Applications/Brave Browser.app"] }
+
+fn open_daily_brave(app: &tauri::AppHandle) -> Result<(), String> {
+    let path = daily_profile(app)?;
+    private::parents(&path)?;
+    if path.exists() && profile::brave_action(&path, "activate")? { return Ok(()); }
+    if !Path::new("/Applications/Brave Browser.app/Contents/MacOS/Brave Browser").is_file() {
+        return Err("未找到原 Brave 程序，未改用其他内核。".into());
+    }
+    if !Command::new("/usr/bin/open").args(daily_launch_arguments()).status().map_err(|_| "Brave 启动失败。")?.success() { return Err("Brave 启动失败。".into()); }
+    for _ in 0..60 {
+        if profile::brave_action(&path, "running")? { return Ok(()); }
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    Err("已发送正常启动请求，尚未确认日常 Brave 实例；未将其他环境视为日常浏览器。".into())
+}
+
+#[tauri::command]
+pub async fn browser_environment_reference(app: tauri::AppHandle, name: String, path: String) -> Result<EnvironmentSnapshot, String> {
+    run(move || {
+        let browser = app.state::<Browser>(); let _guard = browser.gate.lock().unwrap();
+        register_external(&environments_root(&app)?, &name, Path::new(&path), &daily_profile(&app)?)?;
+        snapshot(&app)
+    }).await
 }
 
 fn brave_launch_arguments(path: &Path) -> Vec<String> {
@@ -318,12 +403,25 @@ fn lifecycle(activity: Option<&profile::Activity>, owned: bool, starting: bool) 
     "stopped"
 }
 
+fn daily_summary(observed: Result<profile::Activity, String>) -> EnvironmentSummary {
+    let a = observed.as_ref().ok();
+    EnvironmentSummary {
+        id: "daily".into(), name: "默认 · 本机 Brave".into(), temporary: false,
+        running: a.is_some_and(|v| v.busy()), runtime_status: lifecycle(a, false, false),
+        process_count: a.map(|v|v.process_count), visible_window: a.and_then(|v|v.visible_window),
+        cleanup_pending: false, error: observed.err(), config: Config::default(), brave: true,
+        external_profile: None, daily: true, source: "日常本机 Brave · 正常启动，无独占资料参数",
+    }
+}
+
 fn snapshot(app: &tauri::AppHandle) -> Result<EnvironmentSnapshot, String> {
     let root = environments_root(app)?;
-    let mut items = Vec::new();
+    let daily = daily_profile(app)?;
+    let observed = private::parents(&daily).and_then(|_| profile::activity(&daily, true));
+    let mut items = vec![daily_summary(observed)];
     let (environments, errors) = inventory(&root)?;
     for value in environments {
-        let result = profile::activity(&directory(&root, &value.id)?.join("profile"), value.browser == BrowserKind::Brave);
+        let result = environment_profile(&root, &value).and_then(|path| profile::activity(&path, value.browser == BrowserKind::Brave));
         let observation = result.as_ref().ok();
         let runtime_status = lifecycle(observation, owned_child(app, &value.id), starting(&value, now()));
         // Unknown observations must never enable deletion or pretend that an environment stopped.
@@ -339,6 +437,9 @@ fn snapshot(app: &tauri::AppHandle) -> Result<EnvironmentSnapshot, String> {
             .cloned().or_else(|| result.err());
         items.push(EnvironmentSummary {
             brave: value.browser == BrowserKind::Brave,
+            daily: false,
+            source: if value.external_profile.is_some() { "原 Brave 外部引用 · 仅登记，不拥有资料" } else if value.browser == BrowserKind::Brave { "CCBaga 既有独占 Brave profile · 非日常 Brave" } else { "CCBaga 独占指纹环境" },
+            external_profile: value.external_profile,
             runtime_status,
             process_count,
             visible_window,
@@ -361,6 +462,19 @@ fn remove(
 ) -> Result<(), String> {
     let load_before_remove = load(root, id)?;
     let dir = directory(root, id)?;
+    if load_before_remove.external_profile.is_some() {
+        // Deregistration is allowed even while running or when the external disk disappeared.
+        // Do not validate, traverse, reset or remove the referenced directory.
+        for entry in fs::read_dir(&dir).map_err(|_| "无法检查引用登记。")? {
+            let entry = entry.map_err(|_| "无法检查引用登记。")?;
+            if entry.file_name() != MANIFEST { return Err("引用登记包含未知文件，未删除。".into()); }
+            private::safe(&entry.path())?;
+        }
+        fs::remove_file(dir.join(MANIFEST)).map_err(|_| "无法解除登记。")?;
+        if fs::remove_dir(&dir).is_err() { let _ = save(root, &load_before_remove); return Err("无法解除登记，已保留记录。".into()); }
+        private::sync_parent(&dir);
+        return Ok(());
+    }
     let profile = dir.join("profile");
     stopped()?;
     // Preflight the entire envelope before deleting any profile data. Unknown entries are retained.
@@ -393,7 +507,7 @@ fn cleanup(app: &tauri::AppHandle) -> Result<(), String> {
         if !cleanup_candidate(&item, now()) {
             continue;
         }
-        let profile = directory(&root, &item.id)?.join("profile");
+        let profile = environment_profile(&root, &item)?;
         if owned_child(app, &item.id) || environment_running(&profile, &item)? {
             continue;
         }
@@ -413,7 +527,8 @@ fn cleanup(app: &tauri::AppHandle) -> Result<(), String> {
 }
 
 fn cleanup_candidate(item: &Environment, time: u64) -> bool {
-    item.temporary
+    item.external_profile.is_none()
+        && item.temporary
         && item.cleanup_pending
         // A host crash during spawn may precede Chromium's lock. Do not race a fresh launch.
         && !starting(item, time)
@@ -444,7 +559,7 @@ fn reap(app: &tauri::AppHandle, id: &str, mut child: std::process::Child) {
         let _ = (|| -> Result<(), String> {
             let root = environments_root(&handle)?;
             let mut item = load(&root, &owned_id)?;
-            let profile = directory(&root, &owned_id)?.join("profile");
+            let profile = environment_profile(&root, &item)?;
             // A relay may have exited while the real browser is still alive.
             if !owned_child(&handle, &owned_id) && !environment_running(&profile, &item)? {
                 item.launched_at = None;
@@ -526,6 +641,7 @@ pub async fn browser_environment_rename(
     id: String,
     name: String,
 ) -> Result<EnvironmentSnapshot, String> {
+    require_mutable_target(&id)?;
     run(move || {
         let browser = app.state::<Browser>();
         let _guard = browser.gate.lock().unwrap();
@@ -549,6 +665,7 @@ pub async fn browser_environment_save(
     name: String,
     config: Config,
 ) -> Result<EnvironmentSnapshot, String> {
+    require_mutable_target(&id)?;
     run(move || {
         let browser = app.state::<Browser>();
         let _guard = browser.gate.lock().unwrap();
@@ -663,9 +780,10 @@ fn window_arguments(
 }
 
 fn launch(app: &tauri::AppHandle, id: &str) -> Result<(), String> {
+    if id == "daily" { return open_daily_brave(app); }
     let root = environments_root(app)?;
     let mut item = load(&root, id)?;
-    let profile = directory(&root, id)?.join("profile");
+    let profile = environment_profile(&root, &item)?;
     if item.browser == BrowserKind::Brave { return open_brave_profile(&profile); }
     let activity = profile::activity(&profile, false)?;
     if !activity.main_running && activity.busy() { return Err("后台进程尚未退出，请稍后重新检查。".into()); }
@@ -762,13 +880,14 @@ pub async fn browser_environment_quit(
     app: tauri::AppHandle,
     id: String,
 ) -> Result<EnvironmentSnapshot, String> {
+    require_mutable_target(&id)?;
     run(move || {
         let browser = app.state::<Browser>();
         let _guard = browser.gate.lock().unwrap();
         let root = environments_root(&app)?;
         let mut item = load(&root, &id)?;
         if item.browser == BrowserKind::Brave {
-            let path = directory(&root, &id)?.join("profile");
+            let path = environment_profile(&root, &item)?;
             validate_brave_profile(&path)?;
             profile::brave_action(&path, "quit")?;
             for _ in 0..100 {
@@ -810,6 +929,7 @@ pub async fn browser_environment_delete(
     app: tauri::AppHandle,
     id: String,
 ) -> Result<EnvironmentSnapshot, String> {
+    require_mutable_target(&id)?;
     run(move || {
         let browser = app.state::<Browser>();
         let _guard = browser.gate.lock().unwrap();

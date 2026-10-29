@@ -402,3 +402,77 @@ fn integrated_catalog_refuses_redirects() {
     std::os::unix::fs::symlink(&other, &legacy).unwrap();
     assert!(retained_environments_root(&f.0, &f.0.join("official"), true).is_err());
 }
+
+#[test]
+fn daily_entrance_has_no_new_instance_profile_proxy_or_fingerprint_arguments() {
+    assert_eq!(daily_launch_arguments(), vec!["-a", "/Applications/Brave Browser.app"]);
+}
+
+#[test]
+fn external_reference_deregisters_only_manifest_even_when_running_or_missing() {
+    let registry = Fixture::new(); let source = Fixture::new();
+    let external = source.0.join("original");
+    fs::create_dir_all(external.join("Default")).unwrap();
+    fs::write(external.join("Local State"), "synthetic").unwrap();
+    fs::write(external.join("Default/Cookies"), "not a real credential").unwrap();
+    let canonical = fs::canonicalize(&external).unwrap();
+    let item = register_external(&registry.0, "原 Brave A", &canonical, &source.0.join("daily")).unwrap();
+    assert_eq!(environment_profile(&registry.0,&item).unwrap(), canonical);
+    assert!(!directory(&registry.0,&item.id).unwrap().join("profile").exists());
+    assert!(!cleanup_candidate(&item, u64::MAX));
+    assert!(register_external(&registry.0, "duplicate", &canonical, &source.0.join("daily")).is_err());
+    rename(&registry.0,&item.id,"renamed").unwrap();
+    remove(&registry.0,&item.id,||panic!("external deregistration must not inspect occupancy")).unwrap();
+    assert_eq!(fs::read_to_string(external.join("Default/Cookies")).unwrap(), "not a real credential");
+    let item = register_external(&registry.0,"missing",&canonical,&source.0.join("daily")).unwrap();
+    fs::rename(&external, source.0.join("disconnected")).unwrap();
+    remove(&registry.0,&item.id,||panic!("missing reference must remain removable")).unwrap();
+    assert!(source.0.join("disconnected/Default/Cookies").is_file());
+}
+
+#[test]
+fn external_reference_rejects_managed_daily_links_and_auto_cleanup_flags() {
+    let registry=Fixture::new(); let source=Fixture::new();
+    let external=source.0.join("original");
+    fs::create_dir_all(external.join("Default")).unwrap(); fs::write(external.join("Local State"),"{}").unwrap();
+    let path=fs::canonicalize(&external).unwrap();
+    assert!(register_external(&registry.0,"daily",&path,&path).is_err());
+    #[cfg(unix)] {
+        let linked=source.0.join("linked"); std::os::unix::fs::symlink(&path,&linked).unwrap();
+        assert!(register_external(&registry.0,"link",&linked,&source.0).is_err());
+    }
+    let mut item=register_external(&registry.0,"external",&path,&source.0).unwrap();
+    item.temporary=true; item.cleanup_pending=true;
+    assert!(!cleanup_candidate(&item,u64::MAX));
+    save(&registry.0,&item).unwrap(); assert!(load(&registry.0,&item.id).is_err());
+    assert!(path.join("Local State").is_file());
+}
+
+#[test]
+fn external_reference_unknown_envelope_retains_both_registration_and_source() {
+    let registry=Fixture::new(); let source=Fixture::new();
+    fs::create_dir_all(source.0.join("Default")).unwrap(); fs::write(source.0.join("Local State"),"{}").unwrap();
+    let path=fs::canonicalize(&source.0).unwrap();
+    let item=register_external(&registry.0,"external",&path,&registry.0).unwrap();
+    fs::write(directory(&registry.0,&item.id).unwrap().join("unknown"),"retain").unwrap();
+    assert!(remove(&registry.0,&item.id,||Ok(())).is_err());
+    assert!(load(&registry.0,&item.id).is_ok()); assert!(path.join("Local State").is_file());
+}
+
+#[test]
+fn daily_backend_refuses_all_mutations_and_has_no_manifest() {
+    assert!(require_mutable_target("daily").is_err());
+    let registry=Fixture::new();
+    assert!(remove(&registry.0,"daily",||Ok(())).is_err());
+    assert!(rename(&registry.0,"daily","other").is_err());
+    assert!(load(&registry.0,"daily").is_err());
+}
+
+#[test]
+fn daily_observation_failure_stays_unknown_and_keeps_original_error() {
+    let summary=daily_summary(Err("synthetic observation failure".into()));
+    assert_eq!(summary.runtime_status,"unknown");
+    assert_eq!(summary.error.as_deref(),Some("synthetic observation failure"));
+    assert!(summary.daily); assert_eq!(summary.id,"daily");
+    assert!(!summary.temporary && !summary.cleanup_pending);
+}

@@ -13,7 +13,7 @@ export type BrowserContext={identity?:BrowserIdentity;ui_language:'zh'|'en';exit
 export type BrowserState=BrowserContext&{engine_ready:boolean;running:boolean;profile:string;identity_linked?:boolean;cache:{path:string;bytes:number;login:boolean}[];cache_error:string;report:Report|null;report_received_at:number|null;machine_exit:Exit|null;checks:{title:string;status:'ok'|'mismatch'|'pending';detail:string}[]};
 export type DefaultBrowser={is_default:boolean;http:string;https:string;installed:boolean;app:string};
 export type EnvironmentRuntimeStatus='stopped'|'starting'|'closing'|'checking'|'open'|'background'|'residual'|'running'|'unknown';
-export type EnvironmentSummary={runtime_status?:EnvironmentRuntimeStatus;process_count?:number|null;visible_window?:boolean|null;brave?:boolean;id:string;name:string;temporary:boolean;running:boolean;cleanup_pending:boolean;error:string|null;config:BrowserConfig};
+export type EnvironmentSummary={runtime_status?:EnvironmentRuntimeStatus;process_count?:number|null;visible_window?:boolean|null;brave?:boolean;external_profile?:string|null;daily?:boolean;source?:string;id:string;name:string;temporary:boolean;running:boolean;cleanup_pending:boolean;error:string|null;config:BrowserConfig};
 export type EnvironmentSnapshot={items:EnvironmentSummary[];errors:{id:string;error:string}[]};
 
 export function matchesDevice(machine: Pick<Machine, 'platform'|'version'|'cores'>, report: Pick<Report, 'platform'|'platform_version'|'cores'>) {
@@ -27,13 +27,14 @@ export type BrowserTarget={kind:'native'}|{kind:'environment';id:string};
 export const NATIVE_TARGET='native';
 
 /**
- * Resolve the stored choice without guessing: first use and removed UUIDs fall back to the native browser;
+ * Resolve the stored choice without guessing: first use and removed UUIDs fall back to the daily Brave entrance;
  * a stored UUID is held (null) until the environment list is read, so the detail never shows another target.
  */
 export function resolveBrowserTarget(items: readonly EnvironmentSummary[] | null, stored: string | null): BrowserTarget | null {
-    if (!stored || stored === NATIVE_TARGET) return {kind:'native'};
+    if (stored === NATIVE_TARGET) return {kind:'native'};
+    if (!stored) return items ? {kind:'environment',id:'daily'} : null;
     if (!items) return null;
-    return items.some(item => item.id === stored) ? {kind:'environment', id: stored} : {kind:'native'};
+    return items.some(item => item.id === stored) ? {kind:'environment', id: stored} : {kind:'environment',id:'daily'};
 }
 
 export function targetKey(target: BrowserTarget | null) {

@@ -1,7 +1,7 @@
-/** Read-only browser metadata; this dialog never copies or opens a discovered profile. */
+/** Discovery remains read-only; explicit references register paths without copying profiles. */
 import {useEffect, useState} from 'react';
 import {invoke} from '@tauri-apps/api/core';
-import {Button} from 'cromma-ui';
+import {Button, Input} from 'cromma-ui';
 import {AppDialog} from './dialog';
 import {useI18n} from './i18n';
 
@@ -14,12 +14,13 @@ export type DiscoveredBrowser = {
 };
 export type BrowserDiscovery = {supported: boolean; default_known: boolean; items: DiscoveredBrowser[]};
 
-export function BrowserAddDialog({open, disabled = false, onOpenChange, onCreate}: {
-    open: boolean; disabled?: boolean; onOpenChange: (open: boolean) => void; onCreate: (temporary: boolean) => void;
+export function BrowserAddDialog({open, disabled = false, onOpenChange, onCreate, onReference}: {
+    open: boolean; disabled?: boolean; onOpenChange: (open: boolean) => void; onCreate: (temporary: boolean) => void; onReference: (name:string,path:string) => Promise<boolean>;
 }) {
     const {t} = useI18n();
     const [result, setResult] = useState<BrowserDiscovery | null>(null);
     const [error, setError] = useState('');
+    const [referenceName,setReferenceName]=useState(''), [referencePath,setReferencePath]=useState('');
     useEffect(() => {
         if (!open) return;
         let live = true;
@@ -51,6 +52,13 @@ export function BrowserAddDialog({open, disabled = false, onOpenChange, onCreate
                 <Button variant="ink" disabled={disabled} onClick={() => { onOpenChange(false); onCreate(false); }}>{t("新建长期环境")}</Button>
                 <Button variant="secondary" disabled={disabled} onClick={() => { onOpenChange(false); onCreate(true); }}>{t("新建一次性环境")}</Button>
             </div>
+            <section className="system-card-body">
+                <h3>{t("引用原 Brave 资料目录")}</h3>
+                <p className="system-hint">{t("仅登记原目录，不复制、迁移或读取凭据；登录由本人在浏览器查看。")}</p>
+                <label>{t("环境名称")}<Input value={referenceName} disabled={disabled} onChange={e=>setReferenceName(e.currentTarget.value)}/></label>
+                <label>{t("资料位置")}<Input value={referencePath} disabled={disabled} onChange={e=>setReferencePath(e.currentTarget.value)} placeholder="/Users/…/Library/Application Support/BraveSoftware/Claude-A"/></label>
+                <Button disabled={disabled || !referenceName.trim() || !referencePath.startsWith('/')} onClick={()=>void onReference(referenceName.trim(),referencePath).then(ok=>{if(ok){setReferenceName('');setReferencePath('');}})}>{t("登记外部引用")}</Button>
+            </section>
             <div className="browser-discovery-title"><h3>{t("本机浏览器")}</h3><span>{t("仅发现，导入尚未开放")}</span></div>
             {error && <p role="alert" className="system-feedback error">{t("浏览器发现失败")}: {t(error)}</p>}
             {!result && !error && <p role="status">{t("正在发现浏览器")}</p>}

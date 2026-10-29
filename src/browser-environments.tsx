@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 独立环境命令、受限配置、只读机器时区目录、原生环境卡数据与详情，以及共享 YAML 文案。
- * [OUTPUT]: 原生环境固定最左、独立环境按名称排列的完整封闭卡片；显式原生/UUID 选择目标，选中外框连接唯一常显详情区；独立指纹环境内嵌配置并读回，未保存草稿时禁止打开，删除在详情末尾；Brave 沿用原设置。
+ * [OUTPUT]: 日常 Brave 固定最左且无关闭/清理，原生环境保留身份联动；外部引用仅解除登记；原生环境、独立环境按名称排列的完整封闭卡片；显式原生/UUID 选择目标，选中外框连接唯一常显详情区；独立指纹环境内嵌配置并读回，未保存草稿时禁止打开，删除在详情末尾；Brave 沿用原设置。
  * [POS]: 浏览器目录与选择边界；不切换 Claude 身份，不向独立环境展示原生缓存或实测报告，不接触资料路径。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -16,7 +16,7 @@ type Creator = {name: string; temporary: boolean};
 /** The native card stays owned by BrowserPanel; running=null means its state has not been read back. */
 export type NativeCard = {running: boolean | null; linked: boolean; summary: string | null; footer: ReactNode; detail: ReactNode};
 const languages = ['en-US', 'en-CA', 'en-GB', 'en-SG', 'en-AU', 'en', 'zh-Hans', 'zh-Hant', 'fr', 'de', 'es', 'it', 'ja', 'ko'];
-const STORAGE = 'browser-environment-selected';
+const STORAGE = 'browser-environment-selected-v2';
 
 export function BrowserEnvironments({disabled = false, timezones = [], native, onBusy, onRefresh}: {
     disabled?: boolean;
@@ -184,6 +184,28 @@ export function BrowserEnvironments({disabled = false, timezones = [], native, o
     function begin(temporary: boolean) { setError(''); setCreator({name: '', temporary}); }
     const running = (snapshot?.items.filter(item => item.running).length ?? 0) + (native.running ? 1 : 0);
 
+    const renderCard = (item: EnvironmentSummary) => (<div key={item.id} role="listitem" className={`environment-card-frame${key === item.id ? ' selected' : ''}`}>
+                        <article className={`identity-card browser-environment-card${item.running && item.runtime_status !== 'unknown' ? ' current' : ''}${background(item) ? ' environment-background' : ''}`}
+                            aria-label={`${item.name} · ${status(item)}`} onClickCapture={() => select(item.id)}>
+                            <div className="identity-card-head"><div className="identity-avatar" aria-hidden="true">{Array.from(item.name)[0]?.toUpperCase()}</div><span className="identity-live-badge">{status(item)}</span></div>
+                            <h3 className="environment-card-name">
+                                <button type="button" className="environment-card-choice" disabled={locked} aria-pressed={key === item.id}
+                                    aria-label={t("选择环境 {v0}", {v0: item.name})} onClick={() => select(item.id)}>{item.name}</button>
+                                {!item.daily && <button type="button" className="environment-card-rename" disabled={locked} aria-label={t("重命名环境 {v0}", {v0: item.name})}
+                                    onClick={() => { setError(''); setRenaming(item); setRenameValue(item.name); }}>✎</button>}
+                            </h3>
+                            <div className="identity-badges"><span className="identity-status-badge">{t(item.brave ? "Brave 环境" : item.temporary ? "一次性环境" : "长期环境")}</span></div>
+                            <div className="identity-account environment-config-summary">{item.source ? t(item.source) : item.brave ? t("沿用 Brave 原设置") : item.config.follow_machine ? t("语言与时区跟随机器") : `${item.config.language} · ${item.config.timezone}`}</div>
+                            {background(item) && <p className="environment-runtime-hint" role="status">{t(item.runtime_status === 'residual' ? "相关后台进程未退出" : "未见窗口，进程仍在")}</p>}
+                            {item.error && <p role="alert" className="environment-card-error" title={t(item.error)}>{t(item.error)}</p>}
+                            <div className="identity-card-footer">
+                                <Button size="small" variant="secondary" disabled={locked || (item.cleanup_pending && !item.running) || !!item.error || environmentDirty(item, drafts)} onClick={() => void act('browser_environment_launch', {id: item.id})}>{t("打开窗口")}</Button>
+                                {!item.daily && <Button size="small" variant="ghost" disabled={locked || !item.running} loading={pending?.command === 'browser_environment_quit' && pending.id === item.id}
+                                    onClick={() => void act('browser_environment_quit', {id: item.id})}>{t("关闭浏览器")}</Button>}
+                            </div>
+                        </article>
+                    </div>);
+
     return <Panel className="system-card" aria-label={t("浏览器目录")}>
         <PanelHeader title={t("浏览器目录")} actions={<div className="environment-directory-status">{snapshot && <span role="status" className="system-card-number">{t("{v0} 个环境 · {v1} 运行中", {v0: snapshot.items.length + 1, v1: running})}</span>}<Button size="small" variant="secondary" disabled={locked} onClick={() => void refresh()}>{t("刷新状态")}</Button></div>}/>
         <div className="system-card-body">
@@ -200,6 +222,7 @@ export function BrowserEnvironments({disabled = false, timezones = [], native, o
             <div className="environment-card-report-group" ref={cardGroup}>
                 <svg className="environment-selection-outline" aria-hidden="true"><path d={outline}/></svg>
                 <div className="environment-card-selector" role="list" aria-label={t("浏览器目录")}>
+                    {snapshot?.items.filter(item => item.daily).map(renderCard)}
                     <div role="listitem" className={`environment-card-frame${key === NATIVE_TARGET ? ' selected' : ''}`}>
                         <article className={`identity-card browser-environment-card${native.running ? ' current' : ''}`}
                             aria-label={`${t("原生环境")} · ${nativeStatus}`} onClickCapture={() => select(NATIVE_TARGET)}>
@@ -213,27 +236,7 @@ export function BrowserEnvironments({disabled = false, timezones = [], native, o
                             <div className="identity-card-footer">{native.footer}</div>
                         </article>
                     </div>
-                    {snapshot?.items.map(item => <div key={item.id} role="listitem" className={`environment-card-frame${key === item.id ? ' selected' : ''}`}>
-                        <article className={`identity-card browser-environment-card${item.running && item.runtime_status !== 'unknown' ? ' current' : ''}${background(item) ? ' environment-background' : ''}`}
-                            aria-label={`${item.name} · ${status(item)}`} onClickCapture={() => select(item.id)}>
-                            <div className="identity-card-head"><div className="identity-avatar" aria-hidden="true">{Array.from(item.name)[0]?.toUpperCase()}</div><span className="identity-live-badge">{status(item)}</span></div>
-                            <h3 className="environment-card-name">
-                                <button type="button" className="environment-card-choice" disabled={locked} aria-pressed={key === item.id}
-                                    aria-label={t("选择环境 {v0}", {v0: item.name})} onClick={() => select(item.id)}>{item.name}</button>
-                                <button type="button" className="environment-card-rename" disabled={locked} aria-label={t("重命名环境 {v0}", {v0: item.name})}
-                                    onClick={() => { setError(''); setRenaming(item); setRenameValue(item.name); }}>✎</button>
-                            </h3>
-                            <div className="identity-badges"><span className="identity-status-badge">{t(item.brave ? "Brave 环境" : item.temporary ? "一次性环境" : "长期环境")}</span></div>
-                            <div className="identity-account environment-config-summary">{item.brave ? t("沿用 Brave 原设置") : item.config.follow_machine ? t("语言与时区跟随机器") : `${item.config.language} · ${item.config.timezone}`}</div>
-                            {background(item) && <p className="environment-runtime-hint" role="status">{t(item.runtime_status === 'residual' ? "相关后台进程未退出" : "未见窗口，进程仍在")}</p>}
-                            {item.error && <p role="alert" className="environment-card-error" title={t(item.error)}>{t(item.error)}</p>}
-                            <div className="identity-card-footer">
-                                <Button size="small" variant="secondary" disabled={locked || (item.cleanup_pending && !item.running) || !!item.error || environmentDirty(item, drafts)} onClick={() => void act('browser_environment_launch', {id: item.id})}>{t("打开窗口")}</Button>
-                                <Button size="small" variant="ghost" disabled={locked || !item.running} loading={pending?.command === 'browser_environment_quit' && pending.id === item.id}
-                                    onClick={() => void act('browser_environment_quit', {id: item.id})}>{t("关闭浏览器")}</Button>
-                            </div>
-                        </article>
-                    </div>)}
+                    {snapshot?.items.filter(item => !item.daily).map(renderCard)}
                 </div>
                 <section className="environment-detail" aria-label={key === NATIVE_TARGET ? t("原生环境") : active?.name}>
                     {key === NATIVE_TARGET ? <>
@@ -241,6 +244,8 @@ export function BrowserEnvironments({disabled = false, timezones = [], native, o
                         {native.detail}
                     </> : active ? <div key={active.id}>
                         <div className="environment-detail-heading"><h3>{active.name}</h3><span>{status(active)}</span></div>
+                        {active.source && <p className="system-hint">{t(active.source)}</p>}
+                        {active.external_profile && <p className="system-hint">{active.external_profile}</p>}
                         {!draft ? <p className="system-hint">{t("此环境沿用 Brave 原设置，请在浏览器中配置。")}</p> : <div className="environment-settings">
                             <Panel className="system-card"><PanelHeader title={t("指纹与代理设置")}/><div className="system-card-body">
                                 <label htmlFor="environment-seed">{t("稳定指纹种子")}</label>
@@ -262,15 +267,19 @@ export function BrowserEnvironments({disabled = false, timezones = [], native, o
                                 </div>
                             </div></Panel>
                         </div>}
-                        <div className="environment-danger">
-                            <Button variant="ghost" size="small" disabled={locked || active.running || !!active.error} onClick={() => { setAccepted(false); setRemoving(active); }}>{t("删除环境")}</Button>
-                        </div>
+                        {!active.daily && <div className="environment-danger">
+                            <Button variant="ghost" size="small" disabled={locked || (!active.external_profile && (active.running || !!active.error))} onClick={() => { setAccepted(false); setRemoving(active); }}>{t(active.external_profile ? "解除引用" : "删除环境")}</Button>
+                        </div>}
                     </div> : <p role="status" className="system-hint">{t("环境状态尚未读取。")}</p>}
                 </section>
             </div>
         </div>
 
-        <BrowserAddDialog open={adding} disabled={locked} onOpenChange={setAdding} onCreate={begin}/>
+        <BrowserAddDialog open={adding} disabled={locked} onOpenChange={setAdding} onCreate={begin} onReference={async (name, path) => {
+            const next = await act('browser_environment_reference', {name, path});
+            if (next) { setAdding(false); select(next.items.find(item => item.external_profile === path)?.id ?? 'daily'); }
+            return !!next;
+        }}/>
         <AppDialog open={!!renaming} onOpenChange={open => { if (!open && !locked) setRenaming(null); }} title={t("重命名环境")} footer={<>
             <Button variant="secondary" disabled={locked} onClick={() => setRenaming(null)}>{t("取消")}</Button>
             <Button variant="ink" disabled={locked || !renameCurrent || !renameValid} loading={busy} onClick={() => void saveName()}>{t("保存")}</Button>
@@ -297,9 +306,9 @@ export function BrowserEnvironments({disabled = false, timezones = [], native, o
             </div>
         </AppDialog>
 
-        <AppDialog alert className="identity-delete-alert" open={!!removing} onOpenChange={open => { if (!open && !locked) { setRemoving(null); setAccepted(false); } }} title={t("删除环境")} description={t("永久删除所选环境的登录、密码、书签、历史、扩展、设置和缓存，不创建备份。")} footer={<>
+        <AppDialog alert className="identity-delete-alert" open={!!removing} onOpenChange={open => { if (!open && !locked) { setRemoving(null); setAccepted(false); } }} title={t("删除环境")} description={t(removing?.external_profile ? "仅解除 CCBaga 登记；不关闭浏览器，不删除磁盘资料。" : "永久删除所选环境的登录、密码、书签、历史、扩展、设置和缓存，不创建备份。")} footer={<>
             <Button variant="secondary" data-dialog-cancel disabled={locked} onClick={() => { setRemoving(null); setAccepted(false); }}>{t("取消")}</Button>
-            <Button variant="ink" className="identity-delete-button" disabled={locked || !accepted || !removalCurrent || removalCurrent.running || !!removalCurrent.error} loading={busy} onClick={() => { if (!removing || !accepted || !removalCurrent || removalCurrent.running || removalCurrent.error) return; void act('browser_environment_delete', {id: removing.id}).then(ok => { if (ok && live.current) { setRemoving(null); setAccepted(false); } }); }}>{t("确认删除环境")}</Button>
+            <Button variant="ink" className="identity-delete-button" disabled={locked || !accepted || !removalCurrent || (!removalCurrent.external_profile && (removalCurrent.running || !!removalCurrent.error))} loading={busy} onClick={() => { if (!removing || !accepted || !removalCurrent || (!removalCurrent.external_profile && (removalCurrent.running || removalCurrent.error))) return; void act('browser_environment_delete', {id: removing.id}).then(ok => { if (ok && live.current) { setRemoving(null); setAccepted(false); } }); }}>{t(removing?.external_profile ? "解除引用" : "确认删除环境")}</Button>
         </>}>
             <div className="identity-confirm">
                 <strong>{removing?.name}</strong>

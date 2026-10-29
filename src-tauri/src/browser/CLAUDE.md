@@ -27,3 +27,5 @@ workspace_tests.rs: 临时数据库清理前明确释放句柄以兼容 Windows�
 关闭状态：profile::Activity 读回主进程、明确资料归属的辅助进程与可见窗口；environments 将其映射为已打开/后台/残留/启动/关闭/未知，未知禁止删除。退出命令等待主进程及明确归属进程均退出，超时保留资料并报错；一次性清理使用相同占用检查。测试覆盖状态矩阵及真实原生 JSON 类型。
 
 discovery.rs: 可选只读发现命令 browser_discover，与 environments 生命周期/身份命令分离；非 macOS 明确 supported=false，UI 不提供任意路径，所有 import_capability 固定 unavailable。平台 JSON 类型与未安装有历史资料契约有回归。
+
+外部 Brave 以 external_profile 原址引用，非临时且永不参与 cleanup/reset；删除仅移除登记信封，不要求外部进程退出或目录仍存在。日常 Brave 是固定 daily 入口，只正常 open -a，无独占参数、关闭/清理/删除。已有两独占环境明确来源并保留。

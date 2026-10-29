@@ -168,6 +168,16 @@ static ProfileOwnership profileOwnership(const struct proc_bsdinfo *before, BOOL
 static BOOL profileArgumentsMatch(NSArray<NSString *> *arguments, NSString *profile) {
     return [profileArgument(arguments) isEqualToString:profile];
 }
+// The default-root exception is never used for explicit external profile switches.
+static BOOL normalBraveArguments(NSArray<NSString *> *arguments) {
+    if (!arguments.count) return NO;
+    for (NSString *arg in arguments) {
+        if ([arg isEqualToString:@"--"]) break;
+        if ([arg isEqualToString:@"--user-data-dir"] || [arg hasPrefix:@"--user-data-dir="]
+            || [arg hasPrefix:@"-user-data-dir"]) return NO;
+    }
+    return YES;
+}
 static NSRunningApplication *profileApplicationForBrowser(NSString *profile, BOOL brave, BOOL *unknown) {
     *unknown = NO;
     NSString *lockPath = [profile stringByAppendingPathComponent:@"SingletonLock"];
@@ -202,6 +212,15 @@ static NSRunningApplication *profileApplicationForBrowser(NSString *profile, BOO
     struct proc_bsdinfo current = {0};
     BOOL reread = proc_pidinfo(pid, PROC_PIDTBSDINFO, 0, &current, sizeof(current)) == sizeof(current);
     ProfileOwnership ownership = profileOwnership(&info, reread, &current, arguments, profile);
+    // Only normal Brave may omit user-data-dir: prove the daily root through its own lock,
+    // exact application identity and stable process generation. Explicit/duplicate/malformed
+    // profile switches never fall back to daily ownership.
+    NSString *daily = [NSHomeDirectory() stringByAppendingPathComponent:@"Library/Application Support/BraveSoftware/Brave-Browser"];
+    if (brave && [profile isEqualToString:daily] && arguments && reread
+        && current.pbi_uid == info.pbi_uid && current.pbi_start_tvsec == info.pbi_start_tvsec
+        && current.pbi_start_tvusec == info.pbi_start_tvusec) {
+        if (normalBraveArguments(arguments)) ownership = ProfileOwnershipOwned;
+    }
     *unknown = ownership == ProfileOwnershipUnknown;
     return ownership == ProfileOwnershipOwned ? app : nil;
 }

@@ -192,6 +192,7 @@ fn main() {
             browser::environments::browser_environments_read,
             browser::discovery::browser_discover,
             browser::environments::browser_environment_create,
+            browser::environments::browser_environment_reference,
             browser::environments::browser_environment_rename,
             browser::environments::browser_environment_save,
             browser::environments::browser_environment_launch,

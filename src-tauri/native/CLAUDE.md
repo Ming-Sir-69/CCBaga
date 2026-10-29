@@ -24,3 +24,5 @@ Brave 原生进程接口独立校验 com.brave.Browser、/Applications/Brave Bro
 BrowserDiscovery.m: NSWorkspace 默认/HTTPS 注册程序加已知品牌渠道应用包发现；安装与遗留数据分开。只读 Info.plist 和标准 Chromium Local State 的 profile.info_cache 名称，目录回退只查元数据；不读 Cookie/密码/钥匙串，不访问 Safari 数据，不启动应用。4MiB 文件限额、链接/坏格式/无权限返回未知或受限；BrowserDiscoveryTests.m 使用独占夹具验证默认、缺安装有资料、多 Profile、坏注册和禁用/权限分支。browser2zen MIT 稳定路径表署名与许可放 ../third-party。
 
 上游收敛基础：Browser.m 的主进程归属采用共享三态检查，唯一绝对 user-data-dir 指向的目录须与目标 dev/inode 一致；别名可识别，参数/目录/进程不可读保持未知，仅 ESRCH 确认进程不存在。BrowserProfileTests.m 用自建目录、自身 argv 与自建子进程验证，不读取真实浏览器资料。Brave 分派、窗口和辅助进程观测仍为下游增量。
+
+日常 Brave 仅在明确默认路径、其自身锁、正确应用与稳定进程代次且无任何 user-data-dir 参数时允许正常实例识别；外部及独占仍要求精确参数。
